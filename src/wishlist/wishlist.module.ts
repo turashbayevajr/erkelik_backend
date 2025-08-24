@@ -12,9 +12,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
     { provide: 'IWishlistRepository', useClass: WishlistRepository },
     WishlistsService,
   ],
-  exports: [
-    WishlistsService,
-    'IWishlistRepository',
-  ],
+  exports: [WishlistsService, 'IWishlistRepository'],
 })
 export class WishlistModule {}

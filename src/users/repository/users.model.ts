@@ -1,4 +1,4 @@
-import { Locale } from "@prisma/client";
+import { Locale } from '@prisma/client';
 
 export interface UserModel {
   id: number;

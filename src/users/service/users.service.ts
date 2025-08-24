@@ -23,14 +23,17 @@ type LocaleLike = CommonLocale | PrismaLocale | undefined;
 export class UserService {
   constructor(
     @Inject('IUserRepository')
-    private readonly repo: IUserRepository) {}
+    private readonly repo: IUserRepository,
+  ) {}
 
   /** Normalize any incoming locale (query, DTO, etc.) to 'EN' | 'RU' | 'KK'. */
   private pickLocale(pref?: LocaleLike): CommonLocale {
     return normalizeLocale(pref);
   }
 
-  async create(dto: CreateUserDto): Promise<{ message: string; data: UserModel }> {
+  async create(
+    dto: CreateUserDto,
+  ): Promise<{ message: string; data: UserModel }> {
     const loc = this.pickLocale(dto.preferredLocale);
     const E = userEntityLabel(loc);
 
@@ -105,7 +108,10 @@ export class UserService {
     }
   }
 
-  async remove(id: number, responseLocale?: LocaleLike): Promise<{ message: string }> {
+  async remove(
+    id: number,
+    responseLocale?: LocaleLike,
+  ): Promise<{ message: string }> {
     const loc = this.pickLocale(responseLocale);
     const E = userEntityLabel(loc);
 
@@ -119,5 +125,74 @@ export class UserService {
       if (err instanceof NotFoundException) throw err;
       throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
     }
+  }
+  async registerOrUpdateByTelegramId(
+    telegramId: bigint,
+    username?: string | null,
+    profile?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      preferredLocale?: CommonLocale;
+    },
+    responseLocale?: LocaleLike,
+  ): Promise<{ message: string; data: UserModel }> {
+    const loc = this.pickLocale(responseLocale ?? profile?.preferredLocale);
+    const E = userEntityLabel(loc);
+
+    try {
+      const data = await this.repo.upsertByTelegramId({
+        telegramId,
+        username: username ?? null,
+        firstName: profile?.firstName ?? null,
+        lastName: profile?.lastName ?? null,
+        preferredLocale: profile?.preferredLocale ?? undefined,
+      });
+
+      const isNew = data.createdAt.getTime() === data.updatedAt.getTime();
+      return {
+        message: isNew ? t('CREATED_OK', loc, E) : t('UPDATED_OK', loc, E),
+        data,
+      };
+    } catch (err) {
+      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+    }
+  }
+
+  async findByUsername(
+    username: string,
+    responseLocale?: LocaleLike,
+  ): Promise<UserModel> {
+    const loc = this.pickLocale(responseLocale);
+    const E = userEntityLabel(loc);
+
+    const user = await this.repo.findByUsername(username);
+    if (!user) throw new NotFoundException(t('NOT_FOUND', loc, E));
+    return user;
+  }
+
+  /** NEW: lightweight helper for bot i18n */
+  async getPreferredLocaleByTelegramId(
+    telegramId: bigint,
+  ): Promise<CommonLocale> {
+    const user = await this.repo.findByTelegramId(telegramId);
+    return user?.preferredLocale ?? 'EN';
+  }
+
+  async updateProfileByTelegramId(
+    telegramId: bigint,
+    patch: {
+      username?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      preferredLocale?: CommonLocale;
+    },
+    responseLocale?: LocaleLike,
+  ): Promise<{ message: string; data: UserModel }> {
+    const loc = this.pickLocale(responseLocale ?? patch?.preferredLocale);
+    const E = userEntityLabel(loc);
+
+    const updated = await this.repo.updateByTelegramId(telegramId, patch);
+    if (!updated) throw new NotFoundException(t('NOT_FOUND', loc, E));
+    return { message: t('UPDATED_OK', loc, E), data: updated };
   }
 }

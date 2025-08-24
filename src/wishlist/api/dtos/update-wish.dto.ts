@@ -1,5 +1,13 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsEnum, IsOptional, IsString, IsUrl, Length, IsInt, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Length,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { Locale, WishlistStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { Prisma } from '@prisma/client';
