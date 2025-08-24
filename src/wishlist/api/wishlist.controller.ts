@@ -17,7 +17,7 @@ import { UpdateWishlistDto } from './dtos/update-wish.dto';
 
 type LocaleLike = CommonLocale | PrismaLocale | undefined;
 
-@Controller('api/v1/web/wishlists')
+@Controller('wishlists')
 export class WishlistsController {
   constructor(private readonly service: WishlistsService) {}
 
