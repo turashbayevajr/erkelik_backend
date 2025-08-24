@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Markup, Telegraf, session } from 'telegraf';
 import type { BotContext } from './bot.types';
@@ -89,7 +89,9 @@ function renderWishDetails(lang: UILang, item: WishlistModel): string {
   const T = UI[lang];
   const lines: string[] = [];
   lines.push(`*${escapeMarkdownV2(T.itemViewHeader)}*`);
-  lines.push(`*${escapeMarkdownV2(T.fieldName)}*: ${escapeMarkdownV2(item.name)}`);
+  lines.push(
+    `*${escapeMarkdownV2(T.fieldName)}*: ${escapeMarkdownV2(item.name)}`,
+  );
   const price = item.price ? item.price : T.notSpecified;
   lines.push(`*${escapeMarkdownV2(T.fieldPrice)}*: ${escapeMarkdownV2(price)}`);
   const url = item.url ? item.url : T.notSpecified;
@@ -116,6 +118,23 @@ export class BotService {
     this.bot.use(session({ defaultSession: () => ({}) }));
 
     this.registerHandlers();
+    this.bot.catch(async (err, ctx) => {
+      this.logger.error('Telegraf error', err);
+      const lang = resolveUILang(ctx as BotContext);
+      const fallback =
+        lang === 'RU'
+          ? 'Непредвиденная ошибка. Повторите попытку.'
+          : lang === 'KK'
+            ? 'Күтпеген қате. Кейінірек қайталап көріңіз.'
+            : 'Unexpected error. Please try again.';
+      try {
+        await (ctx as BotContext).reply(escapeMarkdownV2(fallback), {
+          parse_mode: 'MarkdownV2',
+        });
+      } catch {
+        /* suppress */
+      }
+    });
 
     this.bot.launch();
     this.logger.log('Bot is running…');
@@ -166,7 +185,9 @@ export class BotService {
       const firstName = (ctx.from as any).first_name ?? null;
 
       await this.ensureMe(ctx);
-      await ctx.reply(escapeMarkdownV2(T.hello(firstName)), { parse_mode: 'MarkdownV2' });
+      await ctx.reply(escapeMarkdownV2(T.hello(firstName)), {
+        parse_mode: 'MarkdownV2',
+      });
       await this.showMainMenu(ctx);
     });
 
@@ -192,7 +213,9 @@ export class BotService {
 
       ctx.session.item = { name: '', price: null, url: null };
       ctx.session.step = 'waiting_for_name';
-      await ctx.reply(escapeMarkdownV2(T.sendName), { parse_mode: 'MarkdownV2' });
+      await ctx.reply(escapeMarkdownV2(T.sendName), {
+        parse_mode: 'MarkdownV2',
+      });
     });
 
     // View mine
@@ -201,7 +224,10 @@ export class BotService {
       const T = this.ui(ctx);
       const me = await this.ensureMe(ctx);
 
-      const list = await this.wishes.listByOwner(me.id, { orderBy: 'createdAt', sort: 'desc' });
+      const list = await this.wishes.listByOwner(me.id, {
+        orderBy: 'createdAt',
+        sort: 'desc',
+      });
 
       if (!list.length) {
         await ctx.reply(escapeMarkdownV2(T.youHaveNoWishes), {
@@ -214,12 +240,16 @@ export class BotService {
         return;
       }
 
-      await ctx.reply(escapeMarkdownV2(T.listTitleMine), { parse_mode: 'MarkdownV2' });
+      await ctx.reply(escapeMarkdownV2(T.listTitleMine), {
+        parse_mode: 'MarkdownV2',
+      });
 
       for (const it of list) {
         await ctx.reply(escapeMarkdownV2(it.name), {
           parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([[Markup.button.callback(it.name, `view_${it.id}`)]]),
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(it.name, `view_${it.id}`)],
+          ]),
         });
       }
     });
@@ -229,7 +259,9 @@ export class BotService {
       await ctx.answerCbQuery().catch(() => {});
       const T = this.ui(ctx);
       ctx.session.step = 'waiting_for_username';
-      await ctx.reply(escapeMarkdownV2(T.askUsername), { parse_mode: 'MarkdownV2' });
+      await ctx.reply(escapeMarkdownV2(T.askUsername), {
+        parse_mode: 'MarkdownV2',
+      });
     });
 
     // Skip price / Skip link
@@ -243,7 +275,9 @@ export class BotService {
       ctx.session.step = 'waiting_for_url';
       await ctx.reply(escapeMarkdownV2(T.sendUrlOrSkip), {
         parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.skip, 'skip_link')]]),
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.skip, 'skip_link')],
+        ]),
       });
     });
 
@@ -257,7 +291,9 @@ export class BotService {
 
       const created = await this.wishes.create({
         name: ctx.session.item.name,
-        price: ctx.session.item.price ? (ctx.session.item.price as any) : undefined,
+        price: ctx.session.item.price
+          ? (ctx.session.item.price as any)
+          : undefined,
         ownerId: me.id,
         status: 'OPEN',
         preferredLocale: me.locale,
@@ -265,7 +301,9 @@ export class BotService {
 
       await ctx.reply(escapeMarkdownV2(created.message), {
         parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
         link_preview_options: { is_disabled: true },
       });
 
@@ -329,9 +367,11 @@ export class BotService {
       ctx.session.editingItemId = id;
 
       const hint =
-        field === 'name' ? T.hints.enterNewName
-        : field === 'price' ? T.hints.enterNewPrice
-        : T.hints.enterNewUrl;
+        field === 'name'
+          ? T.hints.enterNewName
+          : field === 'price'
+            ? T.hints.enterNewPrice
+            : T.hints.enterNewUrl;
 
       await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
     });
@@ -353,8 +393,14 @@ export class BotService {
 
       // Only send changed fields; by now editingItem stores latest values
       dto.name = ctx.session.editingItem.name;
-      dto.price = ctx.session.editingItem.price === null ? null : ctx.session.editingItem.price;
-      dto.url = ctx.session.editingItem.url === null ? null : ctx.session.editingItem.url;
+      dto.price =
+        ctx.session.editingItem.price === null
+          ? null
+          : ctx.session.editingItem.price;
+      dto.url =
+        ctx.session.editingItem.url === null
+          ? null
+          : ctx.session.editingItem.url;
 
       const res = await this.wishes.update(id, dto, me.locale);
       await ctx.reply(escapeMarkdownV2(T.saved), {
@@ -395,7 +441,9 @@ export class BotService {
       await this.wishes.remove(id, me.locale, me.id);
       await ctx.reply(escapeMarkdownV2(T.deleted), {
         parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
       });
       ctx.session.itemToDeleteId = undefined;
     });
@@ -405,7 +453,9 @@ export class BotService {
       const T = this.ui(ctx);
       await ctx.reply(escapeMarkdownV2(T.deletionCanceled), {
         parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
       });
       ctx.session.itemToDeleteId = undefined;
     });
@@ -436,7 +486,9 @@ export class BotService {
       // Show backend i18n message (already localized) for clarity
       await ctx.reply(escapeMarkdownV2(res.message || T.reservedOk), {
         parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
       });
     });
 
@@ -450,33 +502,52 @@ export class BotService {
       if (ctx.session.step === 'waiting_for_username') {
         const raw = text.replace(/^@/, '');
         if (!isValidUsername(raw)) {
-          await ctx.reply(escapeMarkdownV2(T.askUsername), { parse_mode: 'MarkdownV2' });
-          return;
-        }
-        const u = await this.users.findByUsername(raw);
-        if (!u) {
-          await ctx.reply(escapeMarkdownV2(T.userNotFound), {
+          await ctx.reply(escapeMarkdownV2(T.askUsername), {
             parse_mode: 'MarkdownV2',
-            ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
           });
-          ctx.session.step = undefined;
           return;
         }
-        const list = await this.wishes.listByOwner(u.id, { orderBy: 'createdAt', sort: 'desc' });
+        let u;
+        try {
+          u = await this.users.findByUsername(raw);
+        } catch (e) {
+          if (e instanceof NotFoundException) {
+            await ctx.reply(escapeMarkdownV2(T.userNotRegister), {
+              parse_mode: 'MarkdownV2',
+              ...Markup.inlineKeyboard([
+                [Markup.button.callback(T.buttons.menu, 'menu')],
+              ]),
+            });
+            ctx.session.step = undefined;
+            return;
+          }
+          throw e;
+        }
+        const list = await this.wishes.listByOwner(u.id, {
+          orderBy: 'createdAt',
+          sort: 'desc',
+        });
         if (!list.length) {
           await ctx.reply(escapeMarkdownV2(T.userHasNoWishes), {
             parse_mode: 'MarkdownV2',
-            ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
+            ...Markup.inlineKeyboard([
+              [Markup.button.callback(T.buttons.menu, 'menu')],
+            ]),
           });
           ctx.session.step = undefined;
           return;
         }
 
-        await ctx.reply(escapeMarkdownV2(UI[lang].listTitleOthers(u.username ?? raw)), { parse_mode: 'MarkdownV2' });
+        await ctx.reply(
+          escapeMarkdownV2(UI[lang].listTitleOthers(u.username ?? raw)),
+          { parse_mode: 'MarkdownV2' },
+        );
         for (const it of list) {
           await ctx.reply(escapeMarkdownV2(it.name), {
             parse_mode: 'MarkdownV2',
-            ...Markup.inlineKeyboard([[Markup.button.callback(it.name, `view_other_${it.id}`)]]),
+            ...Markup.inlineKeyboard([
+              [Markup.button.callback(it.name, `view_other_${it.id}`)],
+            ]),
           });
         }
         ctx.session.step = undefined;
@@ -485,12 +556,18 @@ export class BotService {
 
       // 2) Add flow master: name -> price -> url
       if (ctx.session.step === 'waiting_for_name') {
-        ctx.session.item = ctx.session.item ?? { name: '', price: null, url: null };
+        ctx.session.item = ctx.session.item ?? {
+          name: '',
+          price: null,
+          url: null,
+        };
         ctx.session.item.name = text;
         ctx.session.step = 'waiting_for_price';
         await ctx.reply(escapeMarkdownV2(T.sendPriceOrSkip), {
           parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.skip, 'skip_price')]]),
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.skip, 'skip_price')],
+          ]),
         });
         return;
       }
@@ -498,14 +575,18 @@ export class BotService {
       if (ctx.session.step === 'waiting_for_price') {
         const price = normalizePriceInput(text);
         if (price === null) {
-          await ctx.reply(escapeMarkdownV2(T.invalidPrice), { parse_mode: 'MarkdownV2' });
+          await ctx.reply(escapeMarkdownV2(T.invalidPrice), {
+            parse_mode: 'MarkdownV2',
+          });
           return;
         }
         ctx.session.item!.price = price;
         ctx.session.step = 'waiting_for_url';
         await ctx.reply(escapeMarkdownV2(T.sendUrlOrSkip), {
           parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.skip, 'skip_link')]]),
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.skip, 'skip_link')],
+          ]),
         });
         return;
       }
@@ -516,7 +597,9 @@ export class BotService {
 
         const created = await this.wishes.create({
           name: ctx.session.item!.name,
-          price: ctx.session.item!.price ? (ctx.session.item!.price as any) : undefined,
+          price: ctx.session.item!.price
+            ? (ctx.session.item!.price as any)
+            : undefined,
           url: ctx.session.item!.url,
           ownerId: me.id,
           status: 'OPEN',
@@ -524,7 +607,9 @@ export class BotService {
         });
         await ctx.reply(escapeMarkdownV2(created.message), {
           parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([[Markup.button.callback(UI[lang].buttons.menu, 'menu')]]),
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(UI[lang].buttons.menu, 'menu')],
+          ]),
           link_preview_options: { is_disabled: true },
         });
         ctx.session.step = undefined;
@@ -541,20 +626,32 @@ export class BotService {
         } else if (field === 'price') {
           const p = normalizePriceInput(text);
           if (p === null) {
-            await ctx.reply(escapeMarkdownV2(T.invalidPrice), { parse_mode: 'MarkdownV2' });
+            await ctx.reply(escapeMarkdownV2(T.invalidPrice), {
+              parse_mode: 'MarkdownV2',
+            });
             return;
           }
           ctx.session.editingItem.price = p;
         } else if (field === 'url') {
           const v = text.trim();
-          ctx.session.editingItem.url = (v === '-' ? null : v);
+          ctx.session.editingItem.url = v === '-' ? null : v;
         }
 
         ctx.session.editingField = undefined;
-        await ctx.reply(escapeMarkdownV2('📝 OK — press “Save Changes” to apply.'), {
-          parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([[Markup.button.callback(UI[lang].buttons.save, `save_${ctx.session.editingItem.id}`)]]),
-        });
+        await ctx.reply(
+          escapeMarkdownV2('📝 OK — press “Save Changes” to apply.'),
+          {
+            parse_mode: 'MarkdownV2',
+            ...Markup.inlineKeyboard([
+              [
+                Markup.button.callback(
+                  UI[lang].buttons.save,
+                  `save_${ctx.session.editingItem.id}`,
+                ),
+              ],
+            ]),
+          },
+        );
         return;
       }
 

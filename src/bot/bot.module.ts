@@ -5,7 +5,11 @@ import { WishlistModule } from 'src/wishlist/wishlist.module';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [UsersModule, WishlistModule, ConfigModule.forRoot({ isGlobal: true })],
-  providers: [BotService]
+  imports: [
+    UsersModule,
+    WishlistModule,
+    ConfigModule.forRoot({ isGlobal: true }),
+  ],
+  providers: [BotService],
 })
 export class BotModule {}

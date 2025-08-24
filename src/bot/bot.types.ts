@@ -35,8 +35,8 @@ export interface BotSessionData {
 
   // cached current user
   me?: {
-    id: number;            // DB user id
-    telegramId: bigint;    // Telegram id
+    id: number; // DB user id
+    telegramId: bigint; // Telegram id
     locale: 'EN' | 'RU' | 'KK';
   };
 }

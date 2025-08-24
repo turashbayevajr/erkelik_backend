@@ -2,15 +2,18 @@ export type UILang = 'EN' | 'RU' | 'KK';
 
 export const UI = {
   EN: {
-    hello: (name?: string | null) => `Welcome${name ? ', ' + escapePlain(name) : ''}!`,
+    hello: (name?: string | null) =>
+      `Welcome${name ? ', ' + escapePlain(name) : ''}!`,
     menuTitle: 'Choose an action:',
     youHaveNoWishes: 'Your wishlist is empty.',
     userHasNoWishes: 'This user has no wishes yet.',
+    userNotRegister: 'This user has not started using our bot yet.',
     userNotFound: 'User not found.',
     sendName: '✍️ Send a name for your wish.',
     sendPriceOrSkip: '💰 Send a price (e.g., 19990.50), or press “Skip”.',
     sendUrlOrSkip: '🔗 Send a link (URL), or press “Skip”.',
-    invalidPrice: '❗ Invalid price. Please send a non-negative number like 12000 or 199.99.',
+    invalidPrice:
+      '❗ Invalid price. Please send a non-negative number like 12000 or 199.99.',
     askUsername: '🔎 Send Telegram username (with or without @).',
     listTitleMine: '📜 Your wishes:',
     listTitleOthers: (u: string) => `📜 Wishes of @${u}:`,
@@ -46,19 +49,22 @@ export const UI = {
       enterNewName: '✍️ Enter a new name.',
       enterNewPrice: '💰 Enter a new price (e.g., 19990.50).',
       enterNewUrl: '🔗 Enter a new URL (or “-” to clear).',
-    }
+    },
   },
   RU: {
-    hello: (name?: string | null) => `Добро пожаловать${name ? ', ' + escapePlain(name) : ''}!`,
+    hello: (name?: string | null) =>
+      `Добро пожаловать${name ? ', ' + escapePlain(name) : ''}!`,
     menuTitle: 'Выберите действие:',
     youHaveNoWishes: 'Ваш список желаний пуст.',
     userHasNoWishes: 'У пользователя пока нет желаний.',
     userNotFound: 'Пользователь не найден.',
     userNotRegister: 'Этот пользователь ещё не использует наш бот.',
     sendName: '✍️ Пришлите название желания.',
-    sendPriceOrSkip: '💰 Пришлите цену (например, 19990.50) или нажмите «Пропустить».',
+    sendPriceOrSkip:
+      '💰 Пришлите цену (например, 19990.50) или нажмите «Пропустить».',
     sendUrlOrSkip: '🔗 Пришлите ссылку (URL) или нажмите «Пропустить».',
-    invalidPrice: '❗ Некорректная цена. Пришлите неотрицательное число, например 12000 или 199.99.',
+    invalidPrice:
+      '❗ Некорректная цена. Пришлите неотрицательное число, например 12000 или 199.99.',
     askUsername: '🔎 Пришлите Telegram username (с @ или без).',
     listTitleMine: '📜 Ваши желания:',
     listTitleOthers: (u: string) => `📜 Желания пользователя @${u}:`,
@@ -94,19 +100,24 @@ export const UI = {
       enterNewName: '✍️ Введите новое название.',
       enterNewPrice: '💰 Введите новую цену (например, 19990.50).',
       enterNewUrl: '🔗 Введите новый URL (или «-» чтобы очистить).',
-    }
+    },
   },
   KK: {
-    hello: (name?: string | null) => `Қош келдіңіз${name ? ', ' + escapePlain(name) : ''}!`,
+    hello: (name?: string | null) =>
+      `Қош келдіңіз${name ? ', ' + escapePlain(name) : ''}!`,
     menuTitle: 'Әрекет таңдаңыз:',
     youHaveNoWishes: 'Сіздің тілектер тізіміңіз бос.',
     userHasNoWishes: 'Бұл пайдаланушыда әзірге тілектер жоқ.',
     userNotFound: 'Пайдаланушы табылмады.',
+    userNotRegister: 'Бұл қолданушы біздің ботты әлі қолданбайды.',
     sendName: '✍️ Тілек атауын жіберіңіз.',
-    sendPriceOrSkip: '💰 Бағаны жіберіңіз (мысалы, 19990.50) немесе «Өткізу» батырмасын басыңыз.',
-    sendUrlOrSkip: '🔗 Сілтемені (URL) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
-    invalidPrice: '❗ Дұрыс емес баға. Теріс емес сан жіберіңіз, мысалы 12000 немесе 199.99.',
-    askUsername: '🔎 Telegram пайдаланушы атын жіберіңіз (@ бар/жоқ).',
+    sendPriceOrSkip:
+      '💰 Бағаны жіберіңіз (мысалы, 19990.50) немесе «Өткізу» батырмасын басыңыз.',
+    sendUrlOrSkip:
+      '🔗 Сілтемені (URL) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
+    invalidPrice:
+      '❗ Дұрыс емес баға. Теріс емес сан жіберіңіз, мысалы 12000 немесе 199.99.',
+    askUsername: '🔎 Telegram пайдаланушы атын жіберіңіз.',
     listTitleMine: '📜 Сіздің тілектеріңіз:',
     listTitleOthers: (u: string) => `📜 @${u} тілектері:`,
     itemViewHeader: '🧾 Тілек детальдары',
@@ -141,7 +152,7 @@ export const UI = {
       enterNewName: '✍️ Жаңа атауды енгізіңіз.',
       enterNewPrice: '💰 Жаңа бағаны енгізіңіз (мысалы, 19990.50).',
       enterNewUrl: '🔗 Жаңа URL енгізіңіз (немесе «-» — тазарту).',
-    }
+    },
   },
 } as const;
 

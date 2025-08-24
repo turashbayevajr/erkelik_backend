@@ -1,8 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
+  HttpException,
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -21,6 +25,8 @@ type LocaleLike = CommonLocale | PrismaLocale | undefined;
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @Inject('IUserRepository')
     private readonly repo: IUserRepository,
@@ -29,6 +35,35 @@ export class UserService {
   /** Normalize any incoming locale (query, DTO, etc.) to 'EN' | 'RU' | 'KK'. */
   private pickLocale(pref?: LocaleLike): CommonLocale {
     return normalizeLocale(pref);
+  }
+
+  /** Common catch-branch: pass through expected HttpExceptions, wrap the rest into UNEXPECTED and log. */
+  private rethrowOrUnexpected(
+    err: unknown,
+    loc: CommonLocale,
+    entityLabel: string,
+    context: string,
+  ): never {
+    // Expected, "written" HTTP exceptions — pass unchanged (no noisy error log)
+    if (
+      err instanceof NotFoundException ||
+      err instanceof ConflictException ||
+      err instanceof BadRequestException ||
+      err instanceof ForbiddenException
+    ) {
+      throw err;
+    }
+    // Any other explicit HttpException (e.g., custom 4xx) — pass through
+    if (
+      err instanceof HttpException &&
+      !(err instanceof InternalServerErrorException)
+    ) {
+      throw err;
+    }
+
+    // Unknown / Internal / driver errors — log and wrap into UNEXPECTED
+    this.logger.error(`${context} failed`, (err as any)?.stack);
+    throw new InternalServerErrorException(t('UNEXPECTED', loc, entityLabel));
   }
 
   async create(
@@ -46,14 +81,17 @@ export class UserService {
         username: dto.username ?? null,
         firstName: dto.firstName ?? null,
         lastName: dto.lastName ?? null,
-        // Persist preferredLocale; default to 'EN'
         preferredLocale: dto.preferredLocale ?? 'EN',
       });
 
       return { message: t('CREATED_OK', loc, E), data: created };
     } catch (err) {
-      if (err instanceof ConflictException) throw err;
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+      this.rethrowOrUnexpected(
+        err,
+        loc,
+        E,
+        `create(telegramId=${dto.telegramId})`,
+      );
     }
   }
 
@@ -73,24 +111,23 @@ export class UserService {
         username: dto.username ?? null,
         firstName: dto.firstName ?? null,
         lastName: dto.lastName ?? null,
-        // Allow updating preferredLocale only if provided
-        preferredLocale: dto.preferredLocale ?? undefined,
+        preferredLocale: dto.preferredLocale ?? undefined, // update only if provided
       });
 
       return { message: t('UPDATED_OK', loc, E), data: updated };
     } catch (err) {
-      if (err instanceof NotFoundException) throw err;
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+      this.rethrowOrUnexpected(err, loc, E, `update(id=${id})`);
     }
   }
 
   async findAll(): Promise<UserModel[]> {
+    const loc: CommonLocale = 'EN';
+    const E = userEntityLabel(loc);
+
     try {
       return await this.repo.list();
-    } catch {
-      const loc: CommonLocale = 'EN';
-      const E = userEntityLabel(loc);
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+    } catch (err) {
+      this.rethrowOrUnexpected(err, loc, E, 'findAll');
     }
   }
 
@@ -103,8 +140,7 @@ export class UserService {
       if (!found) throw new NotFoundException(t('NOT_FOUND', loc, E));
       return found;
     } catch (err) {
-      if (err instanceof NotFoundException) throw err;
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+      this.rethrowOrUnexpected(err, loc, E, `findOne(id=${id})`);
     }
   }
 
@@ -122,10 +158,10 @@ export class UserService {
       await this.repo.delete(id);
       return { message: t('DELETED_OK', loc, E) };
     } catch (err) {
-      if (err instanceof NotFoundException) throw err;
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+      this.rethrowOrUnexpected(err, loc, E, `remove(id=${id})`);
     }
   }
+
   async registerOrUpdateByTelegramId(
     telegramId: bigint,
     username?: string | null,
@@ -154,7 +190,12 @@ export class UserService {
         data,
       };
     } catch (err) {
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+      this.rethrowOrUnexpected(
+        err,
+        loc,
+        E,
+        `registerOrUpdateByTelegramId(telegramId=${telegramId})`,
+      );
     }
   }
 
@@ -165,17 +206,38 @@ export class UserService {
     const loc = this.pickLocale(responseLocale);
     const E = userEntityLabel(loc);
 
-    const user = await this.repo.findByUsername(username);
-    if (!user) throw new NotFoundException(t('NOT_FOUND', loc, E));
-    return user;
+    try {
+      const user = await this.repo.findByUsername(username);
+      if (!user) throw new NotFoundException(t('NOT_FOUND', loc, E));
+      return user;
+    } catch (err) {
+      this.rethrowOrUnexpected(
+        err,
+        loc,
+        E,
+        `findByUsername(username=${username})`,
+      );
+    }
   }
 
-  /** NEW: lightweight helper for bot i18n */
+  /** Lightweight helper for bot i18n */
   async getPreferredLocaleByTelegramId(
     telegramId: bigint,
   ): Promise<CommonLocale> {
-    const user = await this.repo.findByTelegramId(telegramId);
-    return user?.preferredLocale ?? 'EN';
+    const loc: CommonLocale = 'EN';
+    const E = userEntityLabel(loc);
+
+    try {
+      const user = await this.repo.findByTelegramId(telegramId);
+      return user?.preferredLocale ?? 'EN';
+    } catch (err) {
+      this.rethrowOrUnexpected(
+        err,
+        loc,
+        E,
+        `getPreferredLocaleByTelegramId(telegramId=${telegramId})`,
+      );
+    }
   }
 
   async updateProfileByTelegramId(
@@ -191,8 +253,23 @@ export class UserService {
     const loc = this.pickLocale(responseLocale ?? patch?.preferredLocale);
     const E = userEntityLabel(loc);
 
-    const updated = await this.repo.updateByTelegramId(telegramId, patch);
-    if (!updated) throw new NotFoundException(t('NOT_FOUND', loc, E));
-    return { message: t('UPDATED_OK', loc, E), data: updated };
+    try {
+      const updated = await this.repo.updateByTelegramId(telegramId, {
+        username: patch.username ?? null,
+        firstName: patch.firstName ?? null,
+        lastName: patch.lastName ?? null,
+        preferredLocale: patch.preferredLocale ?? undefined,
+      });
+      if (!updated) throw new NotFoundException(t('NOT_FOUND', loc, E));
+
+      return { message: t('UPDATED_OK', loc, E), data: updated };
+    } catch (err) {
+      this.rethrowOrUnexpected(
+        err,
+        loc,
+        E,
+        `updateProfileByTelegramId(telegramId=${telegramId})`,
+      );
+    }
   }
 }
