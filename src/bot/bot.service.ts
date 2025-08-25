@@ -57,7 +57,6 @@ function itemButtonsMine(lang: UILang, id: string) {
 function itemButtonsMineDynamic(lang: UILang, item: WishlistModel) {
   const B = UI[lang].buttons;
 
-  // Для своих желаний — если заказано, даём завершить (fulfilled)
   if (item.status === 'ORDERED') {
     return Markup.inlineKeyboard([
       [Markup.button.callback(B.fullfilled, `fulfilled_${item.id}`)],
