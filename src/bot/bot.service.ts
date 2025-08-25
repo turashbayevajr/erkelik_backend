@@ -40,6 +40,7 @@ function buildMainMenu(lang: UILang) {
     [Markup.button.callback(B.add, 'add')],
     [Markup.button.callback(B.viewMine, 'view')],
     [Markup.button.callback(B.viewOthers, 'view_others')],
+    [Markup.button.callback(B.viewMyReservations, 'view_reservations')],
   ]);
 }
 
@@ -52,6 +53,54 @@ function itemButtonsMine(lang: UILang, id: string) {
     ],
     [Markup.button.callback(B.menu, 'menu')],
   ]);
+}
+function itemButtonsMineDynamic(lang: UILang, item: WishlistModel) {
+  const B = UI[lang].buttons;
+
+  // Для своих желаний — если заказано, даём завершить (fulfilled)
+  if (item.status === 'ORDERED') {
+    return Markup.inlineKeyboard([
+      [Markup.button.callback(B.fullfilled, `fulfilled_${item.id}`)],
+      [
+        Markup.button.callback(B.edit, `edit_${item.id}`),
+        Markup.button.callback(B.delete, `delete_${item.id}`),
+      ],
+      [Markup.button.callback(B.menu, 'menu')],
+    ]);
+  }
+
+  // В остальных случаях — обычное меню для своих
+  return itemButtonsMine(lang, item.id);
+}
+
+function itemButtonsOthersDynamic(
+  lang: UILang,
+  item: WishlistModel,
+  meId: number,
+) {
+  const B = UI[lang].buttons;
+
+  // Если бронь моя — дать снять бронь и отметить "уже куплено"
+  if (item.status === 'RESERVED' && item.orderedById === meId) {
+    return Markup.inlineKeyboard([
+      [
+        Markup.button.callback(B.unreserve, `unreserve_${item.id}`),
+        Markup.button.callback(B.ordered, `ordered_${item.id}`),
+      ],
+      [Markup.button.callback(B.menu, 'menu')],
+    ]);
+  }
+
+  // Если открыта — дать забронировать
+  if (item.status === 'OPEN') {
+    return Markup.inlineKeyboard([
+      [Markup.button.callback(B.reserve, `reserve_${item.id}`)],
+      [Markup.button.callback(B.menu, 'menu')],
+    ]);
+  }
+
+  // Иначе — только назад в меню
+  return Markup.inlineKeyboard([[Markup.button.callback(B.menu, 'menu')]]);
 }
 
 function editMenu(lang: UILang, id: string) {
@@ -309,10 +358,56 @@ export class BotService {
       ctx.session.item = undefined;
     });
 
-    // ВАЖНО: оставь this.bot.action('view_others', ...) зарегистрированным ПЕРЕД этим блоком,
-    // чтобы точное 'view_others' не перехватывалось универсальным ^view_(...).
+    // View my reservations
+    this.bot.action('view_reservations', async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const T = this.ui(ctx);
+      const me = await this.ensureMe(ctx);
 
-    // View own item details — исключаем 'view_others' и разрешаем дефисы
+      const list = await this.wishes.listReservedByUser(me.id, {
+        orderBy: 'createdAt',
+        sort: 'desc',
+      });
+
+      if (!list.length) {
+        // покажем обычный "нет желаний", чтобы не плодить новый текст
+        await ctx.reply(escapeMarkdownV2(T.youHaveNoWishes), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+        return;
+      }
+
+      await ctx.reply(escapeMarkdownV2('🔒 ' + T.buttons.viewMyReservations), {
+        parse_mode: 'MarkdownV2',
+      });
+
+      for (const it of list) {
+        const id = (it as any).id;
+        if (!id || typeof id !== 'string') {
+          this.logger.error(
+            `Reservation item without id: ${JSON.stringify(it)}`,
+          );
+          continue;
+        }
+
+        const ownerUsername = (it as any).ownerName ?? null;
+        const ownerLabel = ownerUsername
+          ? `@${ownerUsername}`
+          : this.ui(ctx).notSpecified;
+
+        // если я владелец — открываем свой view_, иначе чужой view_other_
+        const target = it.ownerId === me.id ? `view_${id}` : `view_other_${id}`;
+
+        // Сообщение = @username владельца, кнопка = название желания
+        await ctx.reply(escapeMarkdownV2(ownerLabel), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([[Markup.button.callback(it.name, target)]]),
+        });
+      }
+    });
     this.bot.action(/^view_(?!others$|other_)([\w-]+)$/, async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
       const lang = resolveUILang(ctx);
@@ -324,7 +419,7 @@ export class BotService {
         const item = await this.wishes.findOne(id);
         await ctx.reply(renderWishDetails(lang, item), {
           parse_mode: 'MarkdownV2',
-          ...itemButtonsMine(lang, id),
+          ...itemButtonsMineDynamic(lang, item),
           link_preview_options: { is_disabled: true },
         });
 
@@ -526,15 +621,18 @@ export class BotService {
     this.bot.action(/^view_other_([\w-]+)$/, async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
       const id = ctx.match?.[1];
+      this.logger.warn(`view_other clicked id=${id}`);
+
       if (!id) return;
 
       const lang = resolveUILang(ctx);
 
       try {
+        const me = await this.ensureMe(ctx);
         const item = await this.wishes.findOne(id);
         await ctx.reply(renderWishDetails(lang, item), {
           parse_mode: 'MarkdownV2',
-          ...itemButtonsOthers(lang, id),
+          ...itemButtonsOthersDynamic(lang, item, me.id),
           link_preview_options: { is_disabled: true },
         });
       } catch {
@@ -544,6 +642,93 @@ export class BotService {
             : lang === 'KK'
               ? 'Элемент табылмады.'
               : 'Item not found.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
+    });
+
+    // Unreserve (снять бронь)
+    this.bot.action(/^unreserve_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+
+      try {
+        const me = await this.ensureMe(ctx);
+        const res = await this.wishes.unreserveTheWish(id, me.id, lang);
+        await ctx.reply(escapeMarkdownV2(res.message || T.saved), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Снять бронь не удалось.'
+            : lang === 'KK'
+              ? 'Бронь алу мүмкін болмады.'
+              : 'Failed to unreserve.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
+    });
+
+    // Mark as ordered (куплено)
+    this.bot.action(/^ordered_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+
+      try {
+        const me = await this.ensureMe(ctx);
+        const res = await this.wishes.markAsOrdered(id, me.id, lang);
+        await ctx.reply(escapeMarkdownV2(res.message || T.saved), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Отметить покупку не удалось.'
+            : lang === 'KK'
+              ? 'Сатып алынды деп белгілеу мүмкін болмады.'
+              : 'Failed to mark as ordered.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
+    });
+
+    // Mark as fulfilled (для владельца)
+    this.bot.action(/^fulfilled_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+
+      try {
+        const me = await this.ensureMe(ctx);
+        const res = await this.wishes.markAsFulfilled(id, me.id, lang);
+        await ctx.reply(escapeMarkdownV2(res.message || T.saved), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Отметить исполнение не удалось.'
+            : lang === 'KK'
+              ? 'Орындалды деп белгілеу мүмкін болмады.'
+              : 'Failed to mark as fulfilled.';
         await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
       }
     });

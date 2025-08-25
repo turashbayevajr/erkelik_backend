@@ -6,12 +6,16 @@ import {
   InternalServerErrorException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import type { Locale as PrismaLocale, WishlistStatus } from '@prisma/client';
 import type { Locale as CommonLocale } from 'src/common/i18n';
 import { normalizeLocale } from 'src/common/i18n';
 import { t } from 'src/common/messages';
-import { IWishlistRepository } from '../repository/wishlist.repository';
+import {
+  IWishlistRepository,
+  ListOptions,
+} from '../repository/wishlist.repository';
 import { WishlistModel } from '../repository/wishlist.model';
 import { CreateWishlistDto } from '../api/dtos/create-wish.dto';
 import { wishlistEntityLabel } from '../api/dtos/wishlist.i18n';
@@ -21,6 +25,8 @@ type LocaleLike = CommonLocale | PrismaLocale | undefined;
 
 @Injectable()
 export class WishlistsService {
+  private readonly logger = new Logger(WishlistsService.name);
+
   constructor(
     @Inject('IWishlistRepository')
     private readonly repo: IWishlistRepository,
@@ -174,6 +180,7 @@ export class WishlistsService {
       skip?: number;
     },
   ): Promise<WishlistModel[]> {
+    console.log("ownerId", ownerId)
     return this.repo.listByOwner(ownerId, opts);
   }
 
@@ -298,5 +305,35 @@ export class WishlistsService {
       throw new ConflictException(t('STATUS_CONFLICT', loc, E));
     }
     return { message: t('FULFILLED_OK', loc, E), data: after };
+  }
+  async listReservedByUser(
+    userId: number,
+    opts?: ListOptions,
+  ): Promise<WishlistModel[]> {
+    // Default statuses at service layer
+    const statuses =
+      opts?.statuses ?? (['RESERVED', 'ORDERED'] as WishlistStatus[]);
+    const orderBy = opts?.orderBy;
+    const sort = opts?.sort;
+    const take = opts?.take;
+    const skip = opts?.skip;
+
+    try {
+      return await this.repo.listReservedByUser(userId, {
+        statuses,
+        orderBy,
+        sort,
+        take,
+        skip,
+      });
+    } catch (error) {
+      // Centralized logging at service layer
+      this.logger.error(
+        `listReservedByUser failed: userId=${userId}, statuses=[${statuses.join(',')}], orderBy=${orderBy ?? '-'}, sort=${sort ?? '-'}, take=${take ?? '-'}, skip=${skip ?? '-'}`,
+        (error as Error).stack,
+      );
+      // Re-throw so global filters/interceptors can handle it
+      throw error;
+    }
   }
 }

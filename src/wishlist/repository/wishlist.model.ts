@@ -6,6 +6,7 @@ export interface WishlistModel {
   price: string | null;
   url: string | null;
   ownerId: number;
+  ownerName?: number;
   orderedById: number | null;
   status: WishlistStatus;
   createdAt: Date;

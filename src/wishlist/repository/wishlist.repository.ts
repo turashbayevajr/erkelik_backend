@@ -22,6 +22,10 @@ export interface IWishlistRepository {
   list(): Promise<WishlistModel[]>;
 
   listByOwner(ownerId: number, opts?: ListOptions): Promise<WishlistModel[]>;
+  listReservedByUser(
+    userId: number,
+    opts?: ListOptions,
+  ): Promise<WishlistModel[]>;
   listByOwnerUsername(
     username: string,
     opts?: ListOptions,
@@ -70,6 +74,7 @@ function map(row: Prisma.WishlistUncheckedCreateInput & any): WishlistModel {
     price: row.price ? String(row.price) : null,
     url: row.url ?? null,
     ownerId: row.ownerId,
+    ownerName: row.owner?.username ?? null,
     orderedById: row.orderedById ?? null,
     status: row.status,
     createdAt: row.createdAt,
@@ -138,6 +143,33 @@ export class WishlistRepository implements IWishlistRepository {
     });
     return rows.map(map);
   }
+    async listReservedByUser(
+    userId: number,
+    opts?: ListOptions,
+  ): Promise<WishlistModel[]> {
+    const rows = await this.prisma.wishlist.findMany({
+      where: {
+        orderedById: userId,
+        ...(opts?.statuses && opts.statuses.length > 0
+          ? { status: { in: opts.statuses } }
+          : {}),
+      },
+      orderBy: toOrderBy(opts?.orderBy, opts?.sort),
+      take: opts?.take,
+      skip: opts?.skip,
+      select: {
+        id: true,
+        name: true,
+        ownerId: true,
+        status: true,
+        createdAt: true,
+        owner: {
+          select: { username: true },
+        },
+      },
+    });
+    return rows.map(map);
+  }
 
   async listByOwnerUsername(
     username: string,
@@ -151,6 +183,16 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
+            select: {
+        id: true,
+        name: true,
+        ownerId: true,
+        status: true,
+        createdAt: true,
+        owner: {
+          select: { username: true },
+        },
+      },
     });
     return rows.map(map);
   }
@@ -165,6 +207,16 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
+            select: {
+        id: true,
+        name: true,
+        ownerId: true,
+        status: true,
+        createdAt: true,
+        owner: {
+          select: { username: true },
+        },
+      },
     });
     return rows.map(map);
   }

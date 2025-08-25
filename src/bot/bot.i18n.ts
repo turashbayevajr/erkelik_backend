@@ -45,7 +45,9 @@ export const UI = {
       reserve: '🔒 Reserve',
       back: '↩️ Back',
       viewMyReservations: '🔒 My Reservations',
-      bought: '✅ Already bought it',
+      ordered: '✅ Already bought it',
+      fullfilled: '✅ The wish has been fulfilled',
+      unreserve: '🔓 Cancel reservation',
     },
     hints: {
       enterNewName: '✍️ Enter a new name.',
@@ -100,7 +102,9 @@ export const UI = {
       reserve: '🔒 Зарезервировать',
       back: '↩️ Назад',
       viewMyReservations: '🔒 Мои брони',
-      bought: '✅ Уже куплено',
+      ordered: '✅ Уже куплено',
+      fullfilled: '✅ Желание исполнилось',
+      unreserve: '🔓 Снять бронь',
     },
     hints: {
       enterNewName: '✍️ Введите новое название.',
@@ -156,7 +160,9 @@ export const UI = {
       reserve: '🔒 Брондау',
       back: '↩️ Артқа',
       viewMyReservations: '🔒 Менің броньдарым',
-      bought: '✅ Сатып алынды',
+      ordered: '✅ Сатып алынды',
+      fullfilled: '✅ Еркелігім орындалды',
+      unreserve: '🔓 Броньды алып тастау',
     },
     hints: {
       enterNewName: '✍️ Жаңа атауды енгізіңіз.',
