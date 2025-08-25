@@ -49,8 +49,8 @@ export const UI = {
       enterNewName: '✍️ Enter a new name.',
       enterNewPrice: '💰 Enter a new price (e.g., 19990.50).',
       enterNewUrl: '🔗 Enter a new URL (or “-” to clear).',
-      okPressSave: (saveLabel: string) => `📝 OK — press “${saveLabel}” to apply.`,
-
+      okPressSave: (saveLabel: string) =>
+        `📝 OK — press “${saveLabel}” to apply.`,
     },
   },
   RU: {
@@ -102,7 +102,8 @@ export const UI = {
       enterNewName: '✍️ Введите новое название.',
       enterNewPrice: '💰 Введите новую цену (например, 19990.50).',
       enterNewUrl: '🔗 Введите новый URL (или «-» чтобы очистить).',
-      okPressSave: (saveLabel: string) => `📝 ОК — нажмите «${saveLabel}», чтобы применить.`
+      okPressSave: (saveLabel: string) =>
+        `📝 ОК — нажмите «${saveLabel}», чтобы применить.`,
     },
   },
   KK: {
@@ -155,8 +156,8 @@ export const UI = {
       enterNewName: '✍️ Жаңа атауды енгізіңіз.',
       enterNewPrice: '💰 Жаңа бағаны енгізіңіз (мысалы, 19990.50).',
       enterNewUrl: '🔗 Жаңа URL енгізіңіз (немесе «-» — тазарту).',
-      okPressSave: (saveLabel: string) => `📝 ОК — өзгерістерді қолдану үшін «${saveLabel}» батырмасын басыңыз.`,
-
+      okPressSave: (saveLabel: string) =>
+        `📝 ОК — өзгерістерді қолдану үшін «${saveLabel}» батырмасын басыңыз.`,
     },
   },
 } as const;

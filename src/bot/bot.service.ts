@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Markup, Telegraf, session } from 'telegraf';
 import type { BotContext } from './bot.types';
@@ -57,9 +57,9 @@ function itemButtonsMine(lang: UILang, id: string) {
 function editMenu(lang: UILang, id: string) {
   const B = UI[lang].buttons;
   return Markup.inlineKeyboard([
-    [ Markup.button.callback(B.editName, `edit_name_${id}`)],
-    [ Markup.button.callback(B.editPrice, `edit_price_${id}`)],
-    [ Markup.button.callback(B.editUrl, `edit_url_${id}`)],
+    [Markup.button.callback(B.editName, `edit_name_${id}`)],
+    [Markup.button.callback(B.editPrice, `edit_price_${id}`)],
+    [Markup.button.callback(B.editUrl, `edit_url_${id}`)],
     [Markup.button.callback(B.save, `save_${id}`)],
     [Markup.button.callback(B.menu, 'menu')],
   ]);
@@ -118,7 +118,7 @@ export class BotService {
     this.registerHandlers();
     this.bot.catch(async (err, ctx) => {
       this.logger.error('Telegraf error', err);
-      const lang = resolveUILang(ctx as BotContext);
+      const lang = resolveUILang(ctx);
       const fallback =
         lang === 'RU'
           ? 'Непредвиденная ошибка. Повторите попытку.'
@@ -126,7 +126,7 @@ export class BotService {
             ? 'Күтпеген қате. Кейінірек қайталап көріңіз.'
             : 'Unexpected error. Please try again.';
       try {
-        await (ctx as BotContext).reply(escapeMarkdownV2(fallback), {
+        await ctx.reply(escapeMarkdownV2(fallback), {
           parse_mode: 'MarkdownV2',
         });
       } catch {
@@ -154,7 +154,7 @@ export class BotService {
     const { data } = await this.users.registerOrUpdateByTelegramId(
       tgId,
       username,
-      { firstName, lastName , preferredLocale: lang},
+      { firstName, lastName, preferredLocale: lang },
     );
     const locale = data.preferredLocale ?? 'EN';
     ctx.session.me = { id: data.id, telegramId: tgId, locale };
@@ -309,239 +309,279 @@ export class BotService {
       ctx.session.item = undefined;
     });
 
-// ВАЖНО: оставь this.bot.action('view_others', ...) зарегистрированным ПЕРЕД этим блоком,
-// чтобы точное 'view_others' не перехватывалось универсальным ^view_(...).
+    // ВАЖНО: оставь this.bot.action('view_others', ...) зарегистрированным ПЕРЕД этим блоком,
+    // чтобы точное 'view_others' не перехватывалось универсальным ^view_(...).
 
-// View own item details — исключаем 'view_others' и разрешаем дефисы
-this.bot.action(/^view_(?!others$)([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const lang = resolveUILang(ctx);
-  const T = UI[lang];
-  const id = ctx.match?.[1];
-  if (!id) return;
+    // View own item details — исключаем 'view_others' и разрешаем дефисы
+    this.bot.action(/^view_(?!others$)([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+      const id = ctx.match?.[1];
+      if (!id) return;
 
-  try {
-    const item = await this.wishes.findOne(id);
-    await ctx.reply(renderWishDetails(lang, item), {
-      parse_mode: 'MarkdownV2',
-      ...itemButtonsMine(lang, id),
-      link_preview_options: { is_disabled: true },
+      try {
+        const item = await this.wishes.findOne(id);
+        await ctx.reply(renderWishDetails(lang, item), {
+          parse_mode: 'MarkdownV2',
+          ...itemButtonsMine(lang, id),
+          link_preview_options: { is_disabled: true },
+        });
+
+        ctx.session.editingItem = {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          url: item.url,
+          ownerId: item.ownerId,
+        };
+        ctx.session.editingItemId = item.id;
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Элемент не найден.'
+            : lang === 'KK'
+              ? 'Элемент табылмады.'
+              : 'Item not found.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
     });
 
-    ctx.session.editingItem = {
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      url: item.url,
-      ownerId: item.ownerId,
-    };
-    ctx.session.editingItemId = item.id;
-  } catch {
-    const msg = lang === 'RU' ? 'Элемент не найден.' : lang === 'KK' ? 'Элемент табылмады.' : 'Item not found.';
-    await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-  }
-});
+    // Edit menu — не перехватываем edit_name|price|url_
+    this.bot.action(/^edit_(?!name_|price_|url_)([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+      const lang = resolveUILang(ctx);
 
-// Edit menu — не перехватываем edit_name|price|url_
-this.bot.action(/^edit_(?!name_|price_|url_)([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const id = ctx.match?.[1];
-  if (!id) return;
-  const lang = resolveUILang(ctx);
-
-  await ctx.reply(escapeMarkdownV2('⚙️'), {
-    parse_mode: 'MarkdownV2',
-    ...editMenu(lang, id),
-  });
-});
-
-// Choose field to edit
-this.bot.action(/^edit_(name|price|url)_([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const field = ctx.match?.[1] as 'name' | 'price' | 'url';
-  const id = ctx.match?.[2];
-  if (!id || !field) return;
-
-  const lang = resolveUILang(ctx);
-  const T = UI[lang];
-
-  try {
-    const fresh = await this.wishes.findOne(id);
-    ctx.session.editingItem = {
-      id: fresh.id,
-      name: fresh.name,
-      price: fresh.price,
-      url: fresh.url,
-      ownerId: fresh.ownerId,
-    };
-    ctx.session.editingField = field;
-    ctx.session.editingItemId = id;
-
-    const hint =
-      field === 'name'  ? T.hints.enterNewName  :
-      field === 'price' ? T.hints.enterNewPrice :
-                          T.hints.enterNewUrl;
-
-    await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
-  } catch {
-    const msg = lang === 'RU' ? 'Элемент не найден.' : lang === 'KK' ? 'Элемент табылмады.' : 'Item not found.';
-    await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-  }
-});
-
-// Save changes
-this.bot.action(/^save_([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const id = ctx.match?.[1];
-  if (!id) return;
-
-  const lang = resolveUILang(ctx);
-  const T = UI[lang];
-
-  if (!ctx.session.editingItem || ctx.session.editingItem.id !== id) {
-    const msg = lang === 'RU' ? 'Нет активной сессии редактирования.' :
-                lang === 'KK' ? 'Өңдеу сессиясы белсенді емес.' :
-                                'No active edit session.';
-    await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-    return;
-  }
-
-  const me = await this.ensureMe(ctx);
-  const dto: any = {
-    preferredLocale: lang,          // текущий язык UI
-    ownerId: me.id,                 // проверка владения на уровне сервиса
-    name:  ctx.session.editingItem.name,
-    price: ctx.session.editingItem.price === null ? null : ctx.session.editingItem.price,
-    url:   ctx.session.editingItem.url   === null ? null : ctx.session.editingItem.url,
-  };
-
-  try {
-    await this.wishes.update(id, dto, lang);
-    await ctx.reply(escapeMarkdownV2(T.saved), {
-      parse_mode: 'MarkdownV2',
-      ...Markup.inlineKeyboard([
-        [Markup.button.callback(T.buttons.viewWish, `view_${id}`)],
-        [Markup.button.callback(T.buttons.menu, 'menu')],
-      ]),
+      await ctx.reply(escapeMarkdownV2('⚙️'), {
+        parse_mode: 'MarkdownV2',
+        ...editMenu(lang, id),
+      });
     });
-  } catch {
-    const msg = lang === 'RU' ? 'Сохранить не удалось.' :
-                lang === 'KK' ? 'Сақтау мүмкін болмады.' :
-                                'Failed to save.';
-    await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-  } finally {
-    ctx.session.editingItem = undefined;
-    ctx.session.editingField = undefined;
-    ctx.session.editingItemId = undefined;
-  }
-});
 
-// Delete
-this.bot.action(/^delete_([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const id = ctx.match?.[1];
-  if (!id) return;
+    // Choose field to edit
+    this.bot.action(/^edit_(name|price|url)_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const field = ctx.match?.[1] as 'name' | 'price' | 'url';
+      const id = ctx.match?.[2];
+      if (!id || !field) return;
 
-  const lang = resolveUILang(ctx);
-  const T = UI[lang];
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
 
-  ctx.session.itemToDeleteId = id;
-  await ctx.reply(escapeMarkdownV2('❓'), {
-    parse_mode: 'MarkdownV2',
-    ...deleteConfirmMenu(lang, id),
-  });
-});
+      try {
+        const fresh = await this.wishes.findOne(id);
+        ctx.session.editingItem = {
+          id: fresh.id,
+          name: fresh.name,
+          price: fresh.price,
+          url: fresh.url,
+          ownerId: fresh.ownerId,
+        };
+        ctx.session.editingField = field;
+        ctx.session.editingItemId = id;
 
-// Confirm delete
-this.bot.action(/^confirm_delete_([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const id = ctx.match?.[1];
-  if (!id) return;
+        const hint =
+          field === 'name'
+            ? T.hints.enterNewName
+            : field === 'price'
+              ? T.hints.enterNewPrice
+              : T.hints.enterNewUrl;
 
-  const lang = resolveUILang(ctx);
-  const T = UI[lang];
-
-  try {
-    const me = await this.ensureMe(ctx);
-    await this.wishes.remove(id, lang, me.id);
-    await ctx.reply(escapeMarkdownV2(T.deleted), {
-      parse_mode: 'MarkdownV2',
-      ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
+        await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Элемент не найден.'
+            : lang === 'KK'
+              ? 'Элемент табылмады.'
+              : 'Item not found.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
     });
-  } catch {
-    const msg = lang === 'RU' ? 'Удалить не удалось.' :
-                lang === 'KK' ? 'Жою мүмкін болмады.' :
-                                'Failed to delete.';
-    await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-  } finally {
-    ctx.session.itemToDeleteId = undefined;
-  }
-});
 
-// Cancel delete
-this.bot.action('cancel_delete', async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const lang = resolveUILang(ctx);
-  const T = UI[lang];
+    // Save changes
+    this.bot.action(/^save_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
 
-  await ctx.reply(escapeMarkdownV2(T.deletionCanceled), {
-    parse_mode: 'MarkdownV2',
-    ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
-  });
-  ctx.session.itemToDeleteId = undefined;
-});
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
 
-// View other's item
-this.bot.action(/^view_other_([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const id = ctx.match?.[1];
-  if (!id) return;
+      if (!ctx.session.editingItem || ctx.session.editingItem.id !== id) {
+        const msg =
+          lang === 'RU'
+            ? 'Нет активной сессии редактирования.'
+            : lang === 'KK'
+              ? 'Өңдеу сессиясы белсенді емес.'
+              : 'No active edit session.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+        return;
+      }
 
-  const lang = resolveUILang(ctx);
+      const me = await this.ensureMe(ctx);
+      const dto: any = {
+        preferredLocale: lang, // текущий язык UI
+        ownerId: me.id, // проверка владения на уровне сервиса
+        name: ctx.session.editingItem.name,
+        price:
+          ctx.session.editingItem.price === null
+            ? null
+            : ctx.session.editingItem.price,
+        url:
+          ctx.session.editingItem.url === null
+            ? null
+            : ctx.session.editingItem.url,
+      };
 
-  try {
-    const item = await this.wishes.findOne(id);
-    await ctx.reply(renderWishDetails(lang, item), {
-      parse_mode: 'MarkdownV2',
-      ...itemButtonsOthers(lang, id),
-      link_preview_options: { is_disabled: true },
+      try {
+        await this.wishes.update(id, dto, lang);
+        await ctx.reply(escapeMarkdownV2(T.saved), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.viewWish, `view_${id}`)],
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Сохранить не удалось.'
+            : lang === 'KK'
+              ? 'Сақтау мүмкін болмады.'
+              : 'Failed to save.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      } finally {
+        ctx.session.editingItem = undefined;
+        ctx.session.editingField = undefined;
+        ctx.session.editingItemId = undefined;
+      }
     });
-  } catch {
-    const msg = lang === 'RU' ? 'Элемент не найден.' : lang === 'KK' ? 'Элемент табылмады.' : 'Item not found.';
-    await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-  }
-});
 
-// Reserve other's item
-this.bot.action(/^reserve_([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const id = ctx.match?.[1];
-  if (!id) return;
+    // Delete
+    this.bot.action(/^delete_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
 
-  const lang = resolveUILang(ctx);
-  const T = UI[lang];
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
 
-  try {
-    const me = await this.ensureMe(ctx);
-    const res = await this.wishes.reserveTheWish(id, me.id, lang);
-    await ctx.reply(escapeMarkdownV2(res.message || T.reservedOk), {
-      parse_mode: 'MarkdownV2',
-      ...Markup.inlineKeyboard([[Markup.button.callback(T.buttons.menu, 'menu')]]),
+      ctx.session.itemToDeleteId = id;
+      await ctx.reply(escapeMarkdownV2('❓'), {
+        parse_mode: 'MarkdownV2',
+        ...deleteConfirmMenu(lang, id),
+      });
     });
-  } catch {
-    const msg = lang === 'RU' ? 'Бронь не удалось оформить.' :
-                lang === 'KK' ? 'Бронь жасау мүмкін болмады.' :
-                                'Failed to reserve.';
-    await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-  }
-});
 
+    // Confirm delete
+    this.bot.action(/^confirm_delete_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+
+      try {
+        const me = await this.ensureMe(ctx);
+        await this.wishes.remove(id, lang, me.id);
+        await ctx.reply(escapeMarkdownV2(T.deleted), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Удалить не удалось.'
+            : lang === 'KK'
+              ? 'Жою мүмкін болмады.'
+              : 'Failed to delete.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      } finally {
+        ctx.session.itemToDeleteId = undefined;
+      }
+    });
+
+    // Cancel delete
+    this.bot.action('cancel_delete', async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+
+      await ctx.reply(escapeMarkdownV2(T.deletionCanceled), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
+      });
+      ctx.session.itemToDeleteId = undefined;
+    });
+
+    // View other's item
+    this.bot.action(/^view_other_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+
+      const lang = resolveUILang(ctx);
+
+      try {
+        const item = await this.wishes.findOne(id);
+        await ctx.reply(renderWishDetails(lang, item), {
+          parse_mode: 'MarkdownV2',
+          ...itemButtonsOthers(lang, id),
+          link_preview_options: { is_disabled: true },
+        });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Элемент не найден.'
+            : lang === 'KK'
+              ? 'Элемент табылмады.'
+              : 'Item not found.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
+    });
+
+    // Reserve other's item
+    this.bot.action(/^reserve_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+
+      try {
+        const me = await this.ensureMe(ctx);
+        const res = await this.wishes.reserveTheWish(id, me.id, lang);
+        await ctx.reply(escapeMarkdownV2(res.message || T.reservedOk), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Бронь не удалось оформить.'
+            : lang === 'KK'
+              ? 'Бронь жасау мүмкін болмады.'
+              : 'Failed to reserve.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
+    });
 
     // Text handler
     this.bot.on('text', async (ctx) => {
       const lang = resolveUILang(ctx);
       const T = UI[lang];
-      const text = ctx.message!.text.trim();
+      const text = ctx.message.text.trim();
 
       // 1) Enter other's username
       if (ctx.session.step === 'waiting_for_username') {

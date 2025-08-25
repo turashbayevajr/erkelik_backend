@@ -56,7 +56,7 @@ async function bootstrap() {
       });
       logger.log('HTTP server closed. Exiting.');
     } catch (err) {
-      logger.error('Error during shutdown', err as any);
+      logger.error('Error during shutdown', err);
       code = 1;
     } finally {
       process.exit(code);

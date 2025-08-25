@@ -11,9 +11,7 @@ import type { Locale as PrismaLocale, WishlistStatus } from '@prisma/client';
 import type { Locale as CommonLocale } from 'src/common/i18n';
 import { normalizeLocale } from 'src/common/i18n';
 import { t } from 'src/common/messages';
-import {
-  IWishlistRepository,
-} from '../repository/wishlist.repository';
+import { IWishlistRepository } from '../repository/wishlist.repository';
 import { WishlistModel } from '../repository/wishlist.model';
 import { CreateWishlistDto } from '../api/dtos/create-wish.dto';
 import { wishlistEntityLabel } from '../api/dtos/wishlist.i18n';
