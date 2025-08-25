@@ -313,7 +313,7 @@ export class BotService {
     // чтобы точное 'view_others' не перехватывалось универсальным ^view_(...).
 
     // View own item details — исключаем 'view_others' и разрешаем дефисы
-    this.bot.action(/^view_(?!others$)([\w-]+)$/, async (ctx) => {
+    this.bot.action(/^view_(?!others$|other_)([\w-]+)$/, async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
       const lang = resolveUILang(ctx);
       const T = UI[lang];
