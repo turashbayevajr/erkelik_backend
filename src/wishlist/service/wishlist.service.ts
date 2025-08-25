@@ -13,7 +13,6 @@ import { normalizeLocale } from 'src/common/i18n';
 import { t } from 'src/common/messages';
 import {
   IWishlistRepository,
-  ListOptions,
 } from '../repository/wishlist.repository';
 import { WishlistModel } from '../repository/wishlist.model';
 import { CreateWishlistDto } from '../api/dtos/create-wish.dto';
