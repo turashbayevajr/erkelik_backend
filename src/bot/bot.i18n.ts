@@ -44,6 +44,8 @@ export const UI = {
       editUrl: 'URL',
       reserve: '🔒 Reserve',
       back: '↩️ Back',
+      viewMyReservations: '🔒 My Reservations',
+      bought: '✅ Already bought it',
     },
     hints: {
       enterNewName: '✍️ Enter a new name.',
@@ -97,6 +99,8 @@ export const UI = {
       editUrl: 'Ссылка',
       reserve: '🔒 Зарезервировать',
       back: '↩️ Назад',
+      viewMyReservations: '🔒 Мои брони',
+      bought: '✅ Уже куплено',
     },
     hints: {
       enterNewName: '✍️ Введите новое название.',
@@ -110,11 +114,11 @@ export const UI = {
     hello: (name?: string | null) =>
       `Қош келдіңіз${name ? ', ' + escapePlain(name) : ''}!`,
     menuTitle: 'Әрекет таңдаңыз:',
-    youHaveNoWishes: 'Сіздің тілектер тізіміңіз бос.',
-    userHasNoWishes: 'Бұл пайдаланушыда әзірге тілектер жоқ.',
+    youHaveNoWishes: 'Сіздің еркелік тізіміңіз бос.',
+    userHasNoWishes: 'Бұл пайдаланушыда әзірге еркелік жоқ.',
     userNotFound: 'Пайдаланушы табылмады.',
     userNotRegister: 'Бұл қолданушы біздің ботты әлі қолданбайды.',
-    sendName: '✍️ Тілек атауын жіберіңіз.',
+    sendName: '✍️ Еркелік атауын жіберіңіз.',
     sendPriceOrSkip:
       '💰 Бағаны жіберіңіз (мысалы, 19990.50) немесе «Өткізу» батырмасын басыңыз.',
     sendUrlOrSkip:
@@ -122,9 +126,9 @@ export const UI = {
     invalidPrice:
       '❗ Дұрыс емес баға. Теріс емес сан жіберіңіз, мысалы 12000 немесе 199.99.',
     askUsername: '🔎 Telegram пайдаланушы атын жіберіңіз.',
-    listTitleMine: '📜 Сіздің тілектеріңіз:',
-    listTitleOthers: (u: string) => `📜 @${u} тілектері:`,
-    itemViewHeader: '🧾 Тілек детальдары',
+    listTitleMine: '📜 Сіздің еркеліктеріңіз:',
+    listTitleOthers: (u: string) => `📜 @${u} еркеліктері:`,
+    itemViewHeader: '🧾 Еркелік детальдары',
     fieldName: 'Атауы',
     fieldPrice: 'Бағасы',
     fieldUrl: 'Сілтеме',
@@ -151,6 +155,8 @@ export const UI = {
       editUrl: 'Сілтеме',
       reserve: '🔒 Брондау',
       back: '↩️ Артқа',
+      viewMyReservations: '🔒 Менің броньдарым',
+      bought: '✅ Сатып алынды',
     },
     hints: {
       enterNewName: '✍️ Жаңа атауды енгізіңіз.',
