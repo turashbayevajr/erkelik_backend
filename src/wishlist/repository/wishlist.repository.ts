@@ -323,13 +323,13 @@ export class WishlistRepository implements IWishlistRepository {
 
   async markOrdered(id: string, userId: number): Promise<WishlistModel> {
     const updatedFromReserved = await this.prisma.wishlist.updateMany({
-      where: { id, status: 'RESERVED' },
+      where: { id },
       data: { status: 'ORDERED', orderedById: userId },
     });
 
     if (updatedFromReserved.count === 0) {
       const updatedFromOpen = await this.prisma.wishlist.updateMany({
-        where: { id, status: 'OPEN' },
+        where: { id },
         data: { status: 'ORDERED', orderedById: userId },
       });
       if (updatedFromOpen.count === 0) {
@@ -343,7 +343,7 @@ export class WishlistRepository implements IWishlistRepository {
 
   async markFulfilled(id: string): Promise<WishlistModel> {
     const res = await this.prisma.wishlist.updateMany({
-      where: { id, status: 'ORDERED' },
+      where: { id },
       data: { status: 'FULFILLED' },
     });
     if (res.count !== 1) {

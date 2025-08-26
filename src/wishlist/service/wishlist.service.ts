@@ -291,14 +291,17 @@ export class WishlistsService {
     const E = wishlistEntityLabel(loc);
 
     const found = await this.repo.findById(id);
+
     if (!found) throw new NotFoundException(t('NOT_FOUND', loc, E));
     if (found.ownerId !== requesterOwnerId) {
       throw new ForbiddenException(t('FORBIDDEN', loc, E));
     }
-    if (found.status !== 'ORDERED') {
-      throw new BadRequestException(t('STATUS_CONFLICT', loc, E));
+    if (!['ORDERED', 'RESERVED'].includes(found.status)) {
+      throw new BadRequestException(
+        t('STATUS_CONFLICT', loc, E) +
+          ` (expected ORDERED|RESERVED, got ${found.status})`,
+      );
     }
-
     const after = await this.repo.markFulfilled(id);
     if (after.status !== 'FULFILLED') {
       throw new ConflictException(t('STATUS_CONFLICT', loc, E));

@@ -7,6 +7,7 @@ import { UI, UILang } from './bot.i18n';
 import { WishlistModel } from 'src/wishlist/repository/wishlist.model';
 import { UserService } from 'src/users/service/users.service';
 import { WishlistsService } from 'src/wishlist/service/wishlist.service';
+import { WishlistStatus } from '@prisma/client';
 
 // ---------- utils ----------
 
@@ -335,6 +336,7 @@ export class BotService {
       const me = await this.ensureMe(ctx);
 
       const list = await this.wishes.listByOwner(me.id, {
+        statuses: [WishlistStatus.OPEN, WishlistStatus.ORDERED,  WishlistStatus.RESERVED],
         orderBy: 'createdAt',
         sort: 'desc',
       });
@@ -899,8 +901,10 @@ export class BotService {
           throw e;
         }
         const list = await this.wishes.listByOwner(u.id, {
+          statuses: [WishlistStatus.OPEN],
           orderBy: 'createdAt',
           sort: 'desc',
+
         });
         if (!list.length) {
           await ctx.reply(escapeMarkdownV2(T.userHasNoWishes), {
