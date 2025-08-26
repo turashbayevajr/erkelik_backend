@@ -180,7 +180,6 @@ export class WishlistsService {
       skip?: number;
     },
   ): Promise<WishlistModel[]> {
-    console.log('ownerId', ownerId);
     return this.repo.listByOwner(ownerId, opts);
   }
 

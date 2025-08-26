@@ -51,6 +51,7 @@ function itemButtonsMine(lang: UILang, id: string) {
       Markup.button.callback(B.edit, `edit_${id}`),
       Markup.button.callback(B.delete, `delete_${id}`),
     ],
+    [Markup.button.callback(B.fullfilled, `fulfilled_${id}`)],
     [Markup.button.callback(B.menu, 'menu')],
   ]);
 }
@@ -109,14 +110,6 @@ function editMenu(lang: UILang, id: string) {
     [Markup.button.callback(B.editPrice, `edit_price_${id}`)],
     [Markup.button.callback(B.editUrl, `edit_url_${id}`)],
     [Markup.button.callback(B.save, `save_${id}`)],
-    [Markup.button.callback(B.menu, 'menu')],
-  ]);
-}
-
-function itemButtonsOthers(lang: UILang, id: string) {
-  const B = UI[lang].buttons;
-  return Markup.inlineKeyboard([
-    [Markup.button.callback(B.reserve, `reserve_${id}`)],
     [Markup.button.callback(B.menu, 'menu')],
   ]);
 }
@@ -203,6 +196,18 @@ function renderWishDetails(lang: UILang, item: WishlistModel): string {
   lines.push(`*${escapeMarkdownV2(T.fieldUrl)}*: ${escapeMarkdownV2(url)}`);
   return lines.join('\n');
 }
+function detailReservationButtons(
+  lang: UILang,
+  item: WishlistModel,
+  meId: number,
+) {
+  const B = UI[lang].buttons;
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(B.unreserve, `unreserve_${item.id}`)],
+    [Markup.button.callback(B.ordered, `ordered_${item.id}`)],
+    [Markup.button.callback(B.menu, 'menu')],
+  ]);
+}
 
 // ---------- service ----------
 
@@ -242,7 +247,7 @@ export class BotService {
     });
 
     this.bot.launch();
-    this.logger.log('Bot is running…');
+    this.logger.verbose('Bot is running…');
 
     process.once('SIGINT', () => this.bot.stop('SIGINT'));
     process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
@@ -470,9 +475,7 @@ export class BotService {
       await ctx.answerCbQuery().catch(() => {});
       const id = ctx.match?.[1];
       if (!id) return;
-
       const lang = resolveUILang(ctx);
-      const T = UI[lang];
 
       try {
         const me = await this.ensureMe(ctx);
@@ -483,10 +486,7 @@ export class BotService {
 
         const details = renderReservationDetails(lang, item, ownerUsername);
 
-        const keyboard =
-          item.ownerId === me.id
-            ? itemButtonsMineDynamic(lang, item)
-            : itemButtonsOthersDynamic(lang, item, me.id);
+        const keyboard = detailReservationButtons(lang, item, me.id);
 
         await ctx.reply(details, {
           parse_mode: 'MarkdownV2',
@@ -509,11 +509,10 @@ export class BotService {
             : lang === 'KK'
               ? 'Элемент табылмады.'
               : 'Item not found.';
-        await ctx.reply(escapeMarkdownV2(msg), {
-          parse_mode: 'MarkdownV2',
-        });
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
       }
     });
+
     this.bot.action(/^view_(?!others$|other_)([\w-]+)$/, async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
       const lang = resolveUILang(ctx);

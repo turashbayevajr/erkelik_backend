@@ -114,6 +114,8 @@ export class WishlistRepository implements IWishlistRepository {
       select: {
         id: true,
         name: true,
+        url: true,
+        price: true,
         ownerId: true,
         status: true,
         createdAt: true,
@@ -173,6 +175,8 @@ export class WishlistRepository implements IWishlistRepository {
         id: true,
         name: true,
         ownerId: true,
+        url: true,
+        price: true,
         status: true,
         createdAt: true,
         owner: {

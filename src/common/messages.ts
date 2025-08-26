@@ -56,7 +56,7 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
       `${e} күйін өзгерту жарамсыз немесе ол бұрыннан өңделген.`,
     RESERVED_OK: (e) => `${e} сәтті брондалды.`,
     UNRESERVED_OK: (e) => `${e} үшін бронь алынды.`,
-    ORDERED_OK: (e) => `${e} «тапсырыс берілді» ретінде белгіленді.`,
+    ORDERED_OK: (e) => `${e} «сатып алынды» ретінде белгіленді.`,
     FULFILLED_OK: (e) => `${e} «орындалды» ретінде белгіленді.`,
   },
 };
