@@ -1,23 +1,29 @@
-FROM node:lts-bullseye-slim AS base
+# syntax=docker/dockerfile:1
 
+# --- deps ---
+FROM node:22-slim AS deps
 WORKDIR /app
 ENV NODE_ENV=production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-RUN apt update && apt install -y --no-install-recommends \
-openssl fonts-noto libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 librsvg2-bin \
-&& rm -rf /var/lib/apt/lists/*
-
-
-RUN npm install -g @nestjs/cli
-COPY package*.json ./
-RUN npm install
-
-EXPOSE 4002
-ENV PORT=4002
-
+# --- build (needs dev deps) ---
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 RUN npx prisma generate
+RUN npm run build
 
-ENV TZ=Asia/Aqtau
-
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npm run start:dev"]
+# --- runtime ---
+FROM node:22-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production TZ=Asia/Aqtau PORT=4002
+# prod deps + built artifacts only
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/prisma ./prisma
+COPY package.json ./
+EXPOSE 4002
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
