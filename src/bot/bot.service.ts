@@ -130,6 +130,65 @@ function deleteConfirmMenu(lang: UILang, id: string) {
     ],
   ]);
 }
+function renderReservationDetails(
+  lang: UILang,
+  item: WishlistModel,
+  ownerUsername: string | null,
+): string {
+  const T = UI[lang];
+
+  const lines: string[] = [];
+  lines.push(`*${escapeMarkdownV2(T.itemViewHeader)}*`);
+
+  lines.push(
+    `*${escapeMarkdownV2(T.fieldName)}*: ${escapeMarkdownV2(item.name)}`,
+  );
+
+  const price = item.price ? String(item.price) : T.notSpecified;
+  lines.push(`*${escapeMarkdownV2(T.fieldPrice)}*: ${escapeMarkdownV2(price)}`);
+
+  const url = item.url ? item.url : T.notSpecified;
+  lines.push(`*${escapeMarkdownV2(T.fieldUrl)}*: ${escapeMarkdownV2(url)}`);
+
+  // Доп. поля для режима "резервации"
+  const statusLabel =
+    item.status === 'OPEN'
+      ? (T.statusOpen ?? 'OPEN')
+      : item.status === 'RESERVED'
+        ? (T.statusReserved ?? 'RESERVED')
+        : item.status === 'ORDERED'
+          ? (T.statusOrdered ?? 'ORDERED')
+          : item.status === 'FULFILLED'
+            ? (T.statusFulfilled ?? 'FULFILLED')
+            : String(item.status);
+
+  lines.push(
+    `*${escapeMarkdownV2(T.status ?? 'Status')}*: ${escapeMarkdownV2(statusLabel)}`,
+  );
+
+  const ownerLabel = ownerUsername ? `@${ownerUsername}` : T.notSpecified;
+  lines.push(
+    `*${escapeMarkdownV2(T.owner ?? 'Owner')}*: ${escapeMarkdownV2(ownerLabel)}`,
+  );
+
+  const reservedBy =
+    (item as any).reservedByUsername || (item as any).reservedBy || null;
+  const orderedBy =
+    (item as any).orderedByUsername || (item as any).orderedBy || null;
+
+  if (reservedBy) {
+    lines.push(
+      `*${escapeMarkdownV2(T.reservedBy ?? 'Reserved by')}*: ${escapeMarkdownV2('@' + reservedBy)}`,
+    );
+  }
+  if (orderedBy) {
+    lines.push(
+      `*${escapeMarkdownV2(T.orderedBy ?? 'Ordered by')}*: ${escapeMarkdownV2('@' + orderedBy)}`,
+    );
+  }
+
+  return lines.join('\n');
+}
 
 function renderWishDetails(lang: UILang, item: WishlistModel): string {
   const T = UI[lang];
@@ -391,19 +450,67 @@ export class BotService {
           );
           continue;
         }
-
         const ownerUsername = (it as any).ownerName ?? null;
-        const ownerLabel = ownerUsername
-          ? `@${ownerUsername}`
-          : this.ui(ctx).notSpecified;
 
-        // если я владелец — открываем свой view_, иначе чужой view_other_
-        const target = it.ownerId === me.id ? `view_${id}` : `view_other_${id}`;
+        await ctx.reply(
+          escapeMarkdownV2(
+            ownerUsername ? `@${ownerUsername}` : this.ui(ctx).notSpecified,
+          ),
+          {
+            parse_mode: 'MarkdownV2',
+            ...Markup.inlineKeyboard([
+              [Markup.button.callback(it.name, `view_reserved_${id}`)],
+            ]),
+          },
+        );
+      }
+    });
+    // Детальный просмотр элемента именно в контексте "моих броней"
+    this.bot.action(/^view_reserved_([\w-]+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
 
-        // Сообщение = @username владельца, кнопка = название желания
-        await ctx.reply(escapeMarkdownV2(ownerLabel), {
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+
+      try {
+        const me = await this.ensureMe(ctx);
+        const item = await this.wishes.findOne(id);
+
+        const ownerUsername =
+          (item as any).ownerName ?? (item as any).ownerUsername ?? null;
+
+        const details = renderReservationDetails(lang, item, ownerUsername);
+
+        const keyboard =
+          item.ownerId === me.id
+            ? itemButtonsMineDynamic(lang, item)
+            : itemButtonsOthersDynamic(lang, item, me.id);
+
+        await ctx.reply(details, {
           parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([[Markup.button.callback(it.name, target)]]),
+          ...keyboard,
+          link_preview_options: { is_disabled: true },
+        });
+
+        ctx.session.editingItem = {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          url: item.url,
+          ownerId: item.ownerId,
+        };
+        ctx.session.editingItemId = item.id;
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Элемент не найден.'
+            : lang === 'KK'
+              ? 'Элемент табылмады.'
+              : 'Item not found.';
+        await ctx.reply(escapeMarkdownV2(msg), {
+          parse_mode: 'MarkdownV2',
         });
       }
     });

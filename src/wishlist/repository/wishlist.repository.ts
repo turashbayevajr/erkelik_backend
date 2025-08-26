@@ -109,7 +109,19 @@ export class WishlistRepository implements IWishlistRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<WishlistModel | null> {
-    const row = await this.prisma.wishlist.findUnique({ where: { id } });
+    const row = await this.prisma.wishlist.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        ownerId: true,
+        status: true,
+        createdAt: true,
+        owner: {
+          select: { username: true },
+        },
+      },
+    });
     return row ? map(row) : null;
   }
 
@@ -143,7 +155,7 @@ export class WishlistRepository implements IWishlistRepository {
     });
     return rows.map(map);
   }
-    async listReservedByUser(
+  async listReservedByUser(
     userId: number,
     opts?: ListOptions,
   ): Promise<WishlistModel[]> {
@@ -183,7 +195,7 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
-            select: {
+      select: {
         id: true,
         name: true,
         ownerId: true,
@@ -207,7 +219,7 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
-            select: {
+      select: {
         id: true,
         name: true,
         ownerId: true,
