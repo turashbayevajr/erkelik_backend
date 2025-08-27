@@ -34,8 +34,8 @@ RUN adduser --system --uid 1001 nodejs
 COPY --chown=nodejs:nodejs --from=builder /app/dist/ ./dist
 COPY --chown=nodejs:nodejs --from=builder /app/package*.json ./
 COPY --chown=nodejs:nodejs --from=builder /app/node_modules ./node_modules
-COPY --chown=nodejs:nodejs --from=builder /app/src/prisma/migrations ./src/prisma/migrations
-COPY --chown=nodejs:nodejs --from=builder /app/src/prisma/schema.prisma ./src/prisma/schema.prisma 
+COPY --chown=nodejs:nodejs --from=builder /app/prisma/migrations ./prisma/migrations
+COPY --chown=nodejs:nodejs --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma 
 
 USER nodejs
 
