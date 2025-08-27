@@ -1,29 +1,40 @@
-# syntax=docker/dockerfile:1
+FROM node:lts-bullseye-slim AS base
 
-# --- deps ---
-FROM node:22-slim AS deps
-WORKDIR /app
-ENV NODE_ENV=production
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends openssl
+RUN rm -rf /var/lib/apt/lists/*
 
-# --- build (needs dev deps) ---
-FROM node:22-slim AS build
+FROM base AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+
+RUN npm install -g @nestjs/cli
+COPY package.json ./
+COPY package-lock.json ./
+
+RUN npm install
+
 COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# --- runtime ---
-FROM node:22-slim AS runtime
+ENV NODE_ENV=production
+RUN npm i --omit=dev && npm cache clean --force
+
+FROM base AS runner
 WORKDIR /app
-ENV NODE_ENV=production TZ=Asia/Aqtau PORT=4002
-# prod deps + built artifacts only
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-COPY package.json ./
-EXPOSE 4002
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+
+EXPOSE 4000
+ENV PORT=4000
+ENV TZ=Asia/Aqtau
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nodejs
+
+COPY --chown=nodejs:nodejs --from=builder /app/package*.json ./
+COPY --chown=nodejs:nodejs --from=builder /app/node_modules ./node_modules
+COPY --chown=nodejs:nodejs --from=builder /app/dist/ ./dist
+
+USER nodejs
+
+CMD ["npm", "run", "start:prod"]

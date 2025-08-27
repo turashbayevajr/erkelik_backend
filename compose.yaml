@@ -29,8 +29,6 @@ services:
       wishlistdb:
         condition: service_healthy
     ports:
-      - "4002:4002"
-    command: sh -c "npx prisma migrate deploy && node dist/main.js"
-
+      - "4002:4000"
 volumes:
   db-data:
