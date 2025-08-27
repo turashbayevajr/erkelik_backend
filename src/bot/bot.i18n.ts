@@ -12,6 +12,7 @@ export const UI = {
     sendName: '✍️ Send a name for your wish.',
     sendPriceOrSkip: '💰 Send a price (e.g., 19990.50), or press “Skip”.',
     sendUrlOrSkip: '🔗 Send a link (URL), or press “Skip”.',
+    sendDescriptionOrSkip: '📝 Send additional info (description) or press «Skip».',
     invalidPrice:
       '❗ Invalid price. Please send a non-negative number like 12000 or 199.99.',
     askUsername: '🔎 Send Telegram username (with or without @).',
@@ -81,6 +82,7 @@ export const UI = {
     sendPriceOrSkip:
       '💰 Пришлите цену (например, 19990.50) или нажмите «Пропустить».',
     sendUrlOrSkip: '🔗 Пришлите ссылку (URL) или нажмите «Пропустить».',
+    sendDescriptionOrSkip: '📝 Отправьте дополнительную информацию (описание) или нажмите «Пропустить».',
     invalidPrice:
       '❗ Некорректная цена. Пришлите неотрицательное число, например 12000 или 199.99.',
     askUsername: '🔎 Пришлите Telegram username (с @ или без).',
@@ -151,6 +153,7 @@ export const UI = {
       '💰 Бағаны жіберіңіз (мысалы, 19990.50) немесе «Өткізу» батырмасын басыңыз.',
     sendUrlOrSkip:
       '🔗 Сілтемені (URL) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
+    sendDescriptionOrSkip: '📝 Қосымша ақпаратты (сипаттаманы) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
     invalidPrice:
       '❗ Дұрыс емес баға. Теріс емес сан жіберіңіз, мысалы 12000 немесе 199.99.',
     askUsername: '🔎 Telegram пайдаланушы атын жіберіңіз.',
