@@ -5,6 +5,7 @@ export interface WishlistModel {
   name: string;
   price: string | null;
   url: string | null;
+  description: string | null;
   ownerId: number;
   ownerName?: number;
   orderedById: number | null;

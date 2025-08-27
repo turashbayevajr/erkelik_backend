@@ -17,6 +17,7 @@ export interface IWishlistRepository {
     ownerId: number,
     name: string,
     url?: string | null,
+    description?: string | null,
   ): Promise<WishlistModel | null>;
 
   list(): Promise<WishlistModel[]>;
@@ -44,6 +45,7 @@ export interface IWishlistRepository {
     name: string;
     price?: Prisma.Decimal;
     url?: string | null;
+    description?: string | null;
     ownerId: number;
     orderedById?: number | null;
     status?: WishlistStatus;
@@ -55,6 +57,7 @@ export interface IWishlistRepository {
       name?: string;
       price?: Prisma.Decimal | null;
       url?: string | null;
+      description?: string | null;
       orderedById?: number | null;
       status?: WishlistStatus;
     },
@@ -73,6 +76,7 @@ function map(row: Prisma.WishlistUncheckedCreateInput & any): WishlistModel {
     name: row.name,
     price: row.price ? String(row.price) : null,
     url: row.url ?? null,
+    description: row.description ?? null,
     ownerId: row.ownerId,
     ownerName: row.owner?.username ?? null,
     orderedById: row.orderedById ?? null,
@@ -116,6 +120,7 @@ export class WishlistRepository implements IWishlistRepository {
         name: true,
         url: true,
         price: true,
+        description: true,
         ownerId: true,
         status: true,
         createdAt: true,
@@ -131,9 +136,10 @@ export class WishlistRepository implements IWishlistRepository {
     ownerId: number,
     name: string,
     url?: string | null,
+    description?: string | null,
   ): Promise<WishlistModel | null> {
     const row = await this.prisma.wishlist.findFirst({
-      where: { ownerId, name, url: url ?? null },
+      where: { ownerId, name, url: url ?? null, description: description ?? null },
     });
     return row ? map(row) : null;
   }
@@ -176,6 +182,7 @@ export class WishlistRepository implements IWishlistRepository {
         name: true,
         ownerId: true,
         url: true,
+        description: true,
         price: true,
         status: true,
         createdAt: true,
@@ -202,6 +209,9 @@ export class WishlistRepository implements IWishlistRepository {
       select: {
         id: true,
         name: true,
+        description: true,
+        url: true,
+        price: true,
         ownerId: true,
         status: true,
         createdAt: true,
@@ -227,6 +237,9 @@ export class WishlistRepository implements IWishlistRepository {
         id: true,
         name: true,
         ownerId: true,
+        description: true,
+        url: true,
+        price: true,
         status: true,
         createdAt: true,
         owner: {

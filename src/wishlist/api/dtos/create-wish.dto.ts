@@ -37,6 +37,10 @@ export class CreateWishlistDto {
   @IsUrl({ require_protocol: false }) // allow bare domains too if needed
   url?: string;
 
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @IsInt()
   @Min(1)
   ownerId!: number;

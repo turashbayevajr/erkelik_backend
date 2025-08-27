@@ -46,6 +46,7 @@ export class WishlistsService {
         dto.ownerId,
         dto.name,
         dto.url ?? null,
+        dto.description ?? null,
       );
       if (dup) {
         throw new ConflictException(t('ALREADY_EXISTS', loc, E));
@@ -99,6 +100,8 @@ export class WishlistsService {
         name: dto.name ?? undefined,
         price: dto.price === undefined ? undefined : dto.price,
         url: dto.url === undefined ? undefined : (dto.url ?? null),
+        description: dto.description === undefined ? undefined : (dto.description ?? null),
+
         orderedById:
           dto.orderedById === undefined ? undefined : (dto.orderedById ?? null),
         status: dto.status ?? undefined,
