@@ -5,12 +5,14 @@ export type Step =
   | 'waiting_for_name'
   | 'waiting_for_price'
   | 'waiting_for_url'
+  | 'waiting_for_description'
   | 'waiting_for_username';
 
 export interface DraftItem {
   name: string;
   price: string | null;
   url: string | null;
+  description: string | null;
 }
 
 export interface EditingItem {
@@ -18,6 +20,7 @@ export interface EditingItem {
   name: string;
   price: string | null;
   url: string | null;
+  description: string | null;
   ownerId: number;
 }
 
@@ -28,7 +31,7 @@ export interface BotSessionData {
   // editing
   editingItem?: EditingItem;
   editingItemId?: string;
-  editingField?: 'name' | 'price' | 'url';
+  editingField?: 'name' | 'price' | 'url' | 'description';
 
   // deletion
   itemToDeleteId?: string;

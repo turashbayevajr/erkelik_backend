@@ -139,7 +139,12 @@ export class WishlistRepository implements IWishlistRepository {
     description?: string | null,
   ): Promise<WishlistModel | null> {
     const row = await this.prisma.wishlist.findFirst({
-      where: { ownerId, name, url: url ?? null, description: description ?? null },
+      where: {
+        ownerId,
+        name,
+        url: url ?? null,
+        description: description ?? null,
+      },
     });
     return row ? map(row) : null;
   }
@@ -263,6 +268,7 @@ export class WishlistRepository implements IWishlistRepository {
     name: string;
     price?: Prisma.Decimal;
     url?: string | null;
+    description?: string | null;
     ownerId: number;
     orderedById?: number | null;
     status?: WishlistStatus;
@@ -272,6 +278,7 @@ export class WishlistRepository implements IWishlistRepository {
         name: data.name,
         price: data.price ?? undefined,
         url: data.url ?? null,
+        description: data.description ?? null,
         ownerId: data.ownerId,
         orderedById: data.orderedById ?? null,
         status: data.status ?? 'OPEN',
@@ -286,6 +293,7 @@ export class WishlistRepository implements IWishlistRepository {
       name?: string;
       price?: Prisma.Decimal | null;
       url?: string | null;
+      description?: string | null;
       orderedById?: number | null;
       status?: WishlistStatus;
     },
@@ -296,6 +304,7 @@ export class WishlistRepository implements IWishlistRepository {
         name: data.name ?? undefined,
         price: data.price === undefined ? undefined : data.price,
         url: data.url === undefined ? undefined : (data.url ?? null),
+        description: data.description === undefined ? undefined : (data.description ?? null),
         orderedById:
           data.orderedById === undefined
             ? undefined

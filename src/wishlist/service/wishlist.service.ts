@@ -56,6 +56,7 @@ export class WishlistsService {
         price: dto.price ?? undefined,
         url: dto.url ?? null,
         ownerId: dto.ownerId,
+        description: dto.description ?? null,
         orderedById: dto.orderedById ?? null,
         status: dto.status ?? 'OPEN',
       });
@@ -100,8 +101,8 @@ export class WishlistsService {
         name: dto.name ?? undefined,
         price: dto.price === undefined ? undefined : dto.price,
         url: dto.url === undefined ? undefined : (dto.url ?? null),
-        description: dto.description === undefined ? undefined : (dto.description ?? null),
-
+        description:
+          dto.description === undefined ? undefined : (dto.description ?? null),
         orderedById:
           dto.orderedById === undefined ? undefined : (dto.orderedById ?? null),
         status: dto.status ?? undefined,

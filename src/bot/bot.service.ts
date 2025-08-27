@@ -110,6 +110,7 @@ function editMenu(lang: UILang, id: string) {
     [Markup.button.callback(B.editName, `edit_name_${id}`)],
     [Markup.button.callback(B.editPrice, `edit_price_${id}`)],
     [Markup.button.callback(B.editUrl, `edit_url_${id}`)],
+    [Markup.button.callback(B.editDescription, `edit_description_${id}`)],
     [Markup.button.callback(B.save, `save_${id}`)],
     [Markup.button.callback(B.menu, 'menu')],
   ]);
@@ -144,6 +145,10 @@ function renderReservationDetails(
   const url = item.url ? item.url : T.notSpecified;
   lines.push(`*${escapeMarkdownV2(T.fieldUrl)}*: ${escapeMarkdownV2(url)}`);
 
+  const description = item.description ? item.description : T.notSpecified;
+  lines.push(
+    `*${escapeMarkdownV2(T.description)}*: ${escapeMarkdownV2(description)}`,
+  );
   // Доп. поля для режима "резервации"
   const statusLabel =
     item.status === 'OPEN'
@@ -195,6 +200,10 @@ function renderWishDetails(lang: UILang, item: WishlistModel): string {
   lines.push(`*${escapeMarkdownV2(T.fieldPrice)}*: ${escapeMarkdownV2(price)}`);
   const url = item.url ? item.url : T.notSpecified;
   lines.push(`*${escapeMarkdownV2(T.fieldUrl)}*: ${escapeMarkdownV2(url)}`);
+  const description = item.description ? item.description : T.notSpecified;
+  lines.push(
+    `*${escapeMarkdownV2(T.description)}*: ${escapeMarkdownV2(description)}`,
+  );
   return lines.join('\n');
 }
 function detailReservationButtons(
@@ -322,7 +331,12 @@ export class BotService {
       const lang = resolveUILang(ctx);
       const T = UI[lang];
 
-      ctx.session.item = { name: '', price: null, url: null };
+      ctx.session.item = {
+        name: '',
+        price: null,
+        url: null,
+        description: null,
+      };
       ctx.session.step = 'waiting_for_name';
       await ctx.reply(escapeMarkdownV2(T.sendName), {
         parse_mode: 'MarkdownV2',
@@ -336,7 +350,11 @@ export class BotService {
       const me = await this.ensureMe(ctx);
 
       const list = await this.wishes.listByOwner(me.id, {
-        statuses: [WishlistStatus.OPEN, WishlistStatus.ORDERED,  WishlistStatus.RESERVED],
+        statuses: [
+          WishlistStatus.OPEN,
+          WishlistStatus.ORDERED,
+          WishlistStatus.RESERVED,
+        ],
         orderBy: 'createdAt',
         sort: 'desc',
       });
@@ -415,6 +433,38 @@ export class BotService {
         parse_mode: 'MarkdownV2',
         ...Markup.inlineKeyboard([
           [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
+        link_preview_options: { is_disabled: true },
+      });
+
+      ctx.session.step = undefined;
+      ctx.session.item = undefined;
+    });
+    // Somewhere in your callback_query handler:
+    this.bot.action('skip_description', async (ctx) => {
+      if (ctx.session.step !== 'waiting_for_description') return;
+
+      const me = await this.ensureMe(ctx);
+      const item = ctx.session.item!;
+
+      const created = await this.wishes.create({
+        name: item.name,
+        price: item.price ? (item.price as any) : undefined,
+        ...(item.url ? { url: item.url } : {}),
+        ownerId: me.id,
+        status: 'OPEN',
+        preferredLocale: me.locale,
+      });
+      await ctx.editMessageReplyMarkup(undefined).catch(() => undefined);
+      await ctx.reply(escapeMarkdownV2(created.message), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              UI[ctx.session.me?.locale ?? 'EN'].buttons.menu,
+              'menu',
+            ),
+          ],
         ]),
         link_preview_options: { is_disabled: true },
       });
@@ -501,6 +551,7 @@ export class BotService {
           name: item.name,
           price: item.price,
           url: item.url,
+          description: item.description,
           ownerId: item.ownerId,
         };
         ctx.session.editingItemId = item.id;
@@ -535,6 +586,7 @@ export class BotService {
           name: item.name,
           price: item.price,
           url: item.url,
+          description: item.description,
           ownerId: item.ownerId,
         };
         ctx.session.editingItemId = item.id;
@@ -549,59 +601,66 @@ export class BotService {
       }
     });
 
-    // Edit menu — не перехватываем edit_name|price|url_
-    this.bot.action(/^edit_(?!name_|price_|url_)([\w-]+)$/, async (ctx) => {
-      await ctx.answerCbQuery().catch(() => {});
-      const id = ctx.match?.[1];
-      if (!id) return;
-      const lang = resolveUILang(ctx);
+// Edit menu — не перехватываем edit_name|price|url|description_
+this.bot.action(/^edit_(?!name_|price_|url_|description_)([\w-]+)$/, async (ctx) => {
+  await ctx.answerCbQuery().catch(() => {});
+  const id = ctx.match?.[1];
+  if (!id) return;
+  const lang = resolveUILang(ctx);
 
-      await ctx.reply(escapeMarkdownV2('⚙️'), {
-        parse_mode: 'MarkdownV2',
-        ...editMenu(lang, id),
-      });
-    });
+  await ctx.reply(escapeMarkdownV2('⚙️'), {
+    parse_mode: 'MarkdownV2',
+    ...editMenu(lang, id),
+  });
+});
 
-    // Choose field to edit
-    this.bot.action(/^edit_(name|price|url)_([\w-]+)$/, async (ctx) => {
-      await ctx.answerCbQuery().catch(() => {});
-      const field = ctx.match?.[1] as 'name' | 'price' | 'url';
-      const id = ctx.match?.[2];
-      if (!id || !field) return;
+// Choose field to edit
+this.bot.action(
+  /^edit_(name|price|url|description)_([\w-]+)$/,
+  async (ctx) => {
+    await ctx.answerCbQuery().catch(() => {});
+    const field = ctx.match?.[1] as 'name' | 'price' | 'url' | 'description';
+    const id = ctx.match?.[2];
+    if (!id || !field) return;
 
-      const lang = resolveUILang(ctx);
-      const T = UI[lang];
+    const lang = resolveUILang(ctx);
+    const T = UI[lang];
 
-      try {
-        const fresh = await this.wishes.findOne(id);
-        ctx.session.editingItem = {
-          id: fresh.id,
-          name: fresh.name,
-          price: fresh.price,
-          url: fresh.url,
-          ownerId: fresh.ownerId,
-        };
-        ctx.session.editingField = field;
-        ctx.session.editingItemId = id;
+    try {
+      const fresh = await this.wishes.findOne(id);
+      ctx.session.editingItem = {
+        id: fresh.id,
+        name: fresh.name,
+        price: fresh.price,
+        url: fresh.url,
+        description: fresh.description,
+        ownerId: fresh.ownerId,
+      };
+      ctx.session.editingField = field;
+      ctx.session.editingItemId = id;
 
-        const hint =
-          field === 'name'
-            ? T.hints.enterNewName
-            : field === 'price'
-              ? T.hints.enterNewPrice
-              : T.hints.enterNewUrl;
+      const hint =
+        field === 'name'
+          ? T.hints.enterNewName
+          : field === 'price'
+            ? T.hints.enterNewPrice
+            : field === 'url'
+              ? T.hints.enterNewUrl
+              : T.hints.enterNewDescription;
 
-        await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
-      } catch {
-        const msg =
-          lang === 'RU'
-            ? 'Элемент не найден.'
-            : lang === 'KK'
-              ? 'Элемент табылмады.'
-              : 'Item not found.';
-        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-      }
-    });
+      await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
+    } catch {
+      const msg =
+        lang === 'RU'
+          ? 'Элемент не найден.'
+          : lang === 'KK'
+            ? 'Элемент табылмады.'
+            : 'Item not found.';
+      await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+    }
+  },
+);
+
 
     // Save changes
     this.bot.action(/^save_([\w-]+)$/, async (ctx) => {
@@ -636,6 +695,10 @@ export class BotService {
           ctx.session.editingItem.url === null
             ? null
             : ctx.session.editingItem.url,
+        description:
+          ctx.session.editingItem.description === null
+            ? null
+            : ctx.session.editingItem.description,
       };
 
       try {
@@ -904,7 +967,6 @@ export class BotService {
           statuses: [WishlistStatus.OPEN],
           orderBy: 'createdAt',
           sort: 'desc',
-
         });
         if (!list.length) {
           await ctx.reply(escapeMarkdownV2(T.userHasNoWishes), {
@@ -939,6 +1001,7 @@ export class BotService {
           name: '',
           price: null,
           url: null,
+          description: null,
         };
         ctx.session.item.name = text;
         ctx.session.step = 'waiting_for_price';
@@ -971,19 +1034,40 @@ export class BotService {
       }
 
       if (ctx.session.step === 'waiting_for_url') {
-        const me = await this.ensureMe(ctx);
         ctx.session.item!.url = text;
+        ctx.session.step = 'waiting_for_description';
+
+        const prompt =
+          (UI[lang] as any).sendDescriptionOrSkip ??
+          'Send a description (optional), or press Skip';
+
+        await ctx.reply(escapeMarkdownV2(prompt), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.skip, 'skip_description')],
+          ]),
+          link_preview_options: { is_disabled: true },
+        });
+        return;
+      }
+
+      if (ctx.session.step === 'waiting_for_description') {
+        const me = await this.ensureMe(ctx);
+        const v = text.trim();
+        // allow "-" as explicit clear like your edit flow
+        ctx.session.item!.description = v === '-' ? null : v;
+        const item = ctx.session.item!;
 
         const created = await this.wishes.create({
-          name: ctx.session.item!.name,
-          price: ctx.session.item!.price
-            ? (ctx.session.item!.price as any)
-            : undefined,
-          url: ctx.session.item!.url,
+          name: item.name,
+          price: item.price ? (item.price as any) : undefined,
+          ...(item.url ? { url: item.url } : {}),
+          ...(item.description ? { description: item.description } : {}),
           ownerId: me.id,
           status: 'OPEN',
           preferredLocale: me.locale,
         });
+
         await ctx.reply(escapeMarkdownV2(created.message), {
           parse_mode: 'MarkdownV2',
           ...Markup.inlineKeyboard([
@@ -991,11 +1075,11 @@ export class BotService {
           ]),
           link_preview_options: { is_disabled: true },
         });
+
         ctx.session.step = undefined;
         ctx.session.item = undefined;
         return;
       }
-
       // 3) Editing field handler
       if (ctx.session.editingItem && ctx.session.editingField) {
         const field = ctx.session.editingField;
@@ -1013,10 +1097,15 @@ export class BotService {
           ctx.session.editingItem.price = p;
         } else if (field === 'url') {
           const v = text.trim();
-          ctx.session.editingItem.url = v === '-' ? null : v;
+          ctx.session.editingItem.url = v === '-' ? null : v.length ? v : null;
+        } else if (field === 'description') {
+          const v = text.trim();
+          ctx.session.editingItem.description =
+            v === '-' ? null : v.length ? v : null;
         }
 
         ctx.session.editingField = undefined;
+
         await ctx.reply(
           escapeMarkdownV2(UI[lang].hints.okPressSave(UI[lang].buttons.save)),
           {
