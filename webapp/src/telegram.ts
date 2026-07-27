@@ -50,6 +50,20 @@ export function getInitDataRaw(): string {
   return '';
 }
 
+/** language_code пользователя из initData — язык клиента Telegram. */
+export function getTelegramLanguageCode(): string | undefined {
+  const raw = getInitDataRaw();
+  if (!raw) return undefined;
+  try {
+    const userJson = new URLSearchParams(raw).get('user');
+    if (!userJson) return undefined;
+    const user = JSON.parse(userJson) as { language_code?: string };
+    return user.language_code;
+  } catch {
+    return undefined;
+  }
+}
+
 /** start_param из initData: username друга при открытии по share-ссылке. */
 export function getStartParam(): string | undefined {
   const raw = getInitDataRaw();

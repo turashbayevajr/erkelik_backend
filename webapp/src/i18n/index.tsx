@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { getTelegramLanguageCode } from '../telegram';
 import { ru } from './ru';
 import type { Dict } from './ru';
 import { kk } from './kk';
@@ -15,13 +16,23 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   EN: 'English',
 };
 
+function toLocale(code: string | undefined): Locale | undefined {
+  const lang = code?.toLowerCase();
+  if (!lang) return undefined;
+  if (lang.startsWith('ru')) return 'RU';
+  if (lang.startsWith('kk') || lang.startsWith('kz')) return 'KK';
+  if (lang.startsWith('en')) return 'EN';
+  return undefined;
+}
+
 function detectLocale(): Locale {
   const saved = localStorage.getItem('locale');
   if (saved === 'RU' || saved === 'KK' || saved === 'EN') return saved;
-  const lang = navigator.language.toLowerCase();
-  if (lang.startsWith('ru')) return 'RU';
-  if (lang.startsWith('kk') || lang.startsWith('kz')) return 'KK';
-  return 'EN';
+  // Внутри Telegram язык берём из initData: webview почти всегда
+  // отдаёт navigator.language = en-US независимо от языка клиента.
+  return (
+    toLocale(getTelegramLanguageCode()) ?? toLocale(navigator.language) ?? 'EN'
+  );
 }
 
 type I18n = { t: Dict; locale: Locale; setLocale: (l: Locale) => void };
