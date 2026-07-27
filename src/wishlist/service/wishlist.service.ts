@@ -8,10 +8,13 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Locale as PrismaLocale, WishlistStatus } from '@prisma/client';
 import type { Locale as CommonLocale } from 'src/common/i18n';
 import { normalizeLocale } from 'src/common/i18n';
 import { t } from 'src/common/messages';
+import { SocialService } from 'src/social/service/social.service';
+import { WISH_CREATED, WishCreatedEvent } from '../wish-created.event';
 import {
   IWishlistRepository,
   ListOptions,
@@ -30,6 +33,8 @@ export class WishlistsService {
   constructor(
     @Inject('IWishlistRepository')
     private readonly repo: IWishlistRepository,
+    private readonly social: SocialService,
+    private readonly events: EventEmitter2,
   ) {}
 
   private pickLocale(l?: LocaleLike): CommonLocale {
@@ -59,7 +64,18 @@ export class WishlistsService {
         description: dto.description ?? null,
         orderedById: dto.orderedById ?? null,
         status: dto.status ?? 'OPEN',
+        visibility: dto.visibility ?? 'PUBLIC',
+        allowedUserIds: dto.allowedUserIds,
       });
+      this.events.emit(
+        WISH_CREATED,
+        new WishCreatedEvent(
+          created.id,
+          created.ownerId,
+          created.name,
+          created.visibility,
+        ),
+      );
       return { message: t('CREATED_OK', loc, E), data: created };
     } catch (err: any) {
       if (err?.code === 'P2002')
@@ -106,6 +122,8 @@ export class WishlistsService {
         orderedById:
           dto.orderedById === undefined ? undefined : (dto.orderedById ?? null),
         status: dto.status ?? undefined,
+        visibility: dto.visibility ?? undefined,
+        allowedUserIds: dto.allowedUserIds,
       });
       return { message: t('UPDATED_OK', loc, E), data: updated };
     } catch (err: any) {
@@ -169,6 +187,34 @@ export class WishlistsService {
       if (err instanceof NotFoundException || err instanceof ForbiddenException)
         throw err;
       throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+    }
+  }
+
+  // --------- Видимость ---------
+
+  /**
+   * Чужой вишлист глазами viewer: PUBLIC всем, FRIENDS — друзьям,
+   * CUSTOM — только из списка доступа. Свой список — без фильтра.
+   */
+  async listVisibleByOwner(
+    ownerId: number,
+    viewerId: number,
+    opts?: ListOptions,
+  ): Promise<WishlistModel[]> {
+    if (ownerId === viewerId) return this.repo.listByOwner(ownerId, opts);
+    const isFriend = await this.social.areFriends(ownerId, viewerId);
+    return this.repo.listVisibleByOwner(ownerId, { viewerId, isFriend }, opts);
+  }
+
+  async canView(wish: WishlistModel, viewerId: number): Promise<boolean> {
+    if (wish.ownerId === viewerId) return true;
+    switch (wish.visibility) {
+      case 'PUBLIC':
+        return true;
+      case 'FRIENDS':
+        return this.social.areFriends(wish.ownerId, viewerId);
+      case 'CUSTOM':
+        return this.repo.hasAccess(wish.id, viewerId);
     }
   }
 

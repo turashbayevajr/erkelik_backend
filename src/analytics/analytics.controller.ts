@@ -4,7 +4,10 @@ import { IsString, IsNotEmpty } from 'class-validator';
 import { AnalyticsService, AnalyticsData } from './analytics.service';
 
 class AnalyticsBody {
-  @ApiProperty({ description: 'The secret key required to access the analytics data.', example: 'new392' })
+  @ApiProperty({
+    description: 'The secret key required to access the analytics data.',
+    example: 'new392',
+  })
   @IsString()
   @IsNotEmpty()
   secret: string;
@@ -17,7 +20,7 @@ export class AnalyticsController {
   @Post()
   async getMetrics(@Body() body: AnalyticsBody): Promise<AnalyticsData> {
     const expectedSecret = 'aspan@tech';
-    
+
     if (body.secret !== expectedSecret) {
       throw new NotFoundException('Analytics resource not found.');
     }

@@ -1,4 +1,4 @@
-import { WishlistStatus } from '@prisma/client';
+import { WishlistStatus, WishVisibility } from '@prisma/client';
 
 export interface WishlistModel {
   id: string;
@@ -7,9 +7,10 @@ export interface WishlistModel {
   url: string | null;
   description: string | null;
   ownerId: number;
-  ownerName?: number;
+  ownerName?: string | null;
   orderedById: number | null;
   status: WishlistStatus;
+  visibility: WishVisibility;
   createdAt: Date;
   updatedAt: Date;
 }

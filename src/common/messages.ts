@@ -23,6 +23,11 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
     ORDERED_OK: (e) => `${e} has been marked as ordered.`,
     FULFILLED_OK: (e) => `${e} has been marked as fulfilled.`,
     SELF_RESERVED_OK: (e) => `You marked your own ${e} as reserved.`,
+    SUBSCRIBED_OK: () => `You are now subscribed to this wishlist.`,
+    UNSUBSCRIBED_OK: () => `You have unsubscribed from this wishlist.`,
+    FRIEND_REQUESTED: () => `Friend request sent.`,
+    FRIEND_ACCEPTED: () => `Friend request accepted — you are now friends.`,
+    FRIEND_REMOVED: () => `Removed from friends.`,
   },
   RU: {
     CREATED_OK: (e) => `${e} успешно создан.`,
@@ -40,6 +45,11 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
     UNRESERVED_OK: (e) => `Резерв для ${e} снят.`,
     ORDERED_OK: (e) => `${e} помечен(о) как заказан(о).`,
     FULFILLED_OK: (e) => `${e} помечен(о) как выполнен(о).`,
+    SUBSCRIBED_OK: () => `Вы подписались на этот вишлист.`,
+    UNSUBSCRIBED_OK: () => `Вы отписались от этого вишлиста.`,
+    FRIEND_REQUESTED: () => `Заявка в друзья отправлена.`,
+    FRIEND_ACCEPTED: () => `Заявка принята — теперь вы друзья.`,
+    FRIEND_REMOVED: () => `Удалён из друзей.`,
   },
   KK: {
     CREATED_OK: (e) => `${e} сәтті құрылды.`,
@@ -58,6 +68,11 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
     UNRESERVED_OK: (e) => `${e} үшін бронь алынды.`,
     ORDERED_OK: (e) => `${e} «сатып алынды» ретінде белгіленді.`,
     FULFILLED_OK: (e) => `${e} «орындалды» ретінде белгіленді.`,
+    SUBSCRIBED_OK: () => `Сіз бұл тілектер тізіміне жазылдыңыз.`,
+    UNSUBSCRIBED_OK: () => `Сіз бұл тілектер тізімінен бас тарттыңыз.`,
+    FRIEND_REQUESTED: () => `Достыққа өтінім жіберілді.`,
+    FRIEND_ACCEPTED: () => `Өтінім қабылданды — енді сіздер доссыздар.`,
+    FRIEND_REMOVED: () => `Достардан өшірілді.`,
   },
 };
 

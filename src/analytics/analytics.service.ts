@@ -15,7 +15,6 @@ export interface AnalyticsData {
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-
   async getAnalyticsData(): Promise<AnalyticsData> {
     const totalUsers = await this.prisma.user.count();
 

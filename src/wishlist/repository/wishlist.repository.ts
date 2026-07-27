@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, WishlistStatus } from '@prisma/client';
+import { Prisma, WishlistStatus, WishVisibility } from '@prisma/client';
 import { WishlistModel } from './wishlist.model';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -41,6 +41,14 @@ export interface IWishlistRepository {
     opts?: Omit<ListOptions, 'take' | 'skip'>,
   ): Promise<number>;
 
+  listVisibleByOwner(
+    ownerId: number,
+    viewer: { viewerId: number; isFriend: boolean },
+    opts?: ListOptions,
+  ): Promise<WishlistModel[]>;
+  hasAccess(wishId: string, userId: number): Promise<boolean>;
+  listAllowedUserIds(wishId: string): Promise<number[]>;
+
   create(data: {
     name: string;
     price?: Prisma.Decimal;
@@ -49,6 +57,8 @@ export interface IWishlistRepository {
     ownerId: number;
     orderedById?: number | null;
     status?: WishlistStatus;
+    visibility?: WishVisibility;
+    allowedUserIds?: number[];
   }): Promise<WishlistModel>;
 
   update(
@@ -60,6 +70,8 @@ export interface IWishlistRepository {
       description?: string | null;
       orderedById?: number | null;
       status?: WishlistStatus;
+      visibility?: WishVisibility;
+      allowedUserIds?: number[];
     },
   ): Promise<WishlistModel>;
 
@@ -81,9 +93,23 @@ function map(row: Prisma.WishlistUncheckedCreateInput & any): WishlistModel {
     ownerName: row.owner?.username ?? null,
     orderedById: row.orderedById ?? null,
     status: row.status,
+    visibility: row.visibility ?? 'PUBLIC',
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+// Условие видимости чужого желания для просматривающего.
+function visibleToViewerWhere(viewer: {
+  viewerId: number;
+  isFriend: boolean;
+}): Prisma.WishlistWhereInput {
+  const or: Prisma.WishlistWhereInput[] = [
+    { visibility: 'PUBLIC' },
+    { visibility: 'CUSTOM', accesses: { some: { userId: viewer.viewerId } } },
+  ];
+  if (viewer.isFriend) or.push({ visibility: 'FRIENDS' });
+  return { OR: or };
 }
 
 function toOrderBy(
@@ -122,8 +148,11 @@ export class WishlistRepository implements IWishlistRepository {
         price: true,
         description: true,
         ownerId: true,
+        orderedById: true,
         status: true,
+        visibility: true,
         createdAt: true,
+        updatedAt: true,
         owner: {
           select: { username: true },
         },
@@ -190,6 +219,7 @@ export class WishlistRepository implements IWishlistRepository {
         description: true,
         price: true,
         status: true,
+        visibility: true,
         createdAt: true,
         owner: {
           select: { username: true },
@@ -219,6 +249,7 @@ export class WishlistRepository implements IWishlistRepository {
         price: true,
         ownerId: true,
         status: true,
+        visibility: true,
         createdAt: true,
         owner: {
           select: { username: true },
@@ -246,6 +277,7 @@ export class WishlistRepository implements IWishlistRepository {
         url: true,
         price: true,
         status: true,
+        visibility: true,
         createdAt: true,
         owner: {
           select: { username: true },
@@ -264,6 +296,38 @@ export class WishlistRepository implements IWishlistRepository {
     });
   }
 
+  async listVisibleByOwner(
+    ownerId: number,
+    viewer: { viewerId: number; isFriend: boolean },
+    opts?: ListOptions,
+  ): Promise<WishlistModel[]> {
+    const rows = await this.prisma.wishlist.findMany({
+      where: {
+        AND: [toWhere(ownerId, opts?.statuses), visibleToViewerWhere(viewer)],
+      },
+      orderBy: toOrderBy(opts?.orderBy, opts?.sort),
+      take: opts?.take,
+      skip: opts?.skip,
+    });
+    return rows.map(map);
+  }
+
+  async hasAccess(wishId: string, userId: number): Promise<boolean> {
+    const found = await this.prisma.wishAccess.findUnique({
+      where: { wishId_userId: { wishId, userId } },
+      select: { wishId: true },
+    });
+    return Boolean(found);
+  }
+
+  async listAllowedUserIds(wishId: string): Promise<number[]> {
+    const rows = await this.prisma.wishAccess.findMany({
+      where: { wishId },
+      select: { userId: true },
+    });
+    return rows.map((r) => r.userId);
+  }
+
   async create(data: {
     name: string;
     price?: Prisma.Decimal;
@@ -272,6 +336,8 @@ export class WishlistRepository implements IWishlistRepository {
     ownerId: number;
     orderedById?: number | null;
     status?: WishlistStatus;
+    visibility?: WishVisibility;
+    allowedUserIds?: number[];
   }): Promise<WishlistModel> {
     const row = await this.prisma.wishlist.create({
       data: {
@@ -282,6 +348,14 @@ export class WishlistRepository implements IWishlistRepository {
         ownerId: data.ownerId,
         orderedById: data.orderedById ?? null,
         status: data.status ?? 'OPEN',
+        visibility: data.visibility ?? 'PUBLIC',
+        ...(data.allowedUserIds?.length
+          ? {
+              accesses: {
+                create: data.allowedUserIds.map((userId) => ({ userId })),
+              },
+            }
+          : {}),
       },
     });
     return map(row);
@@ -296,6 +370,8 @@ export class WishlistRepository implements IWishlistRepository {
       description?: string | null;
       orderedById?: number | null;
       status?: WishlistStatus;
+      visibility?: WishVisibility;
+      allowedUserIds?: number[];
     },
   ): Promise<WishlistModel> {
     const row = await this.prisma.wishlist.update({
@@ -304,12 +380,24 @@ export class WishlistRepository implements IWishlistRepository {
         name: data.name ?? undefined,
         price: data.price === undefined ? undefined : data.price,
         url: data.url === undefined ? undefined : (data.url ?? null),
-        description: data.description === undefined ? undefined : (data.description ?? null),
+        description:
+          data.description === undefined
+            ? undefined
+            : (data.description ?? null),
         orderedById:
           data.orderedById === undefined
             ? undefined
             : (data.orderedById ?? null),
         status: data.status ?? undefined,
+        visibility: data.visibility ?? undefined,
+        ...(data.allowedUserIds !== undefined
+          ? {
+              accesses: {
+                deleteMany: {},
+                create: data.allowedUserIds.map((userId) => ({ userId })),
+              },
+            }
+          : {}),
       },
     });
     return map(row);

@@ -16,7 +16,12 @@ export type MessageKey =
   | 'UNRESERVED_OK'
   | 'ORDERED_OK'
   | 'SELF_RESERVED_OK'
-  | 'FULFILLED_OK';
+  | 'FULFILLED_OK'
+  | 'SUBSCRIBED_OK'
+  | 'UNSUBSCRIBED_OK'
+  | 'FRIEND_REQUESTED'
+  | 'FRIEND_ACCEPTED'
+  | 'FRIEND_REMOVED';
 
 export function isLocale(x: unknown): x is Locale {
   return typeof x === 'string' && (LOCALES as readonly string[]).includes(x);

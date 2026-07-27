@@ -9,7 +9,7 @@ import {
   Length,
   Min,
 } from 'class-validator';
-import { Locale, WishlistStatus } from '@prisma/client';
+import { Locale, WishlistStatus, WishVisibility } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 
 export class CreateWishlistDto {
@@ -53,6 +53,16 @@ export class CreateWishlistDto {
   @IsOptional()
   @IsEnum(WishlistStatus)
   status?: WishlistStatus; // defaults to OPEN in DB
+
+  @IsOptional()
+  @IsEnum(WishVisibility)
+  visibility?: WishVisibility; // defaults to PUBLIC in DB
+
+  /** Для visibility=CUSTOM: кому именно видно желание */
+  @IsOptional()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  allowedUserIds?: number[];
 
   /** Optional response/user locale hint */
   @IsOptional()

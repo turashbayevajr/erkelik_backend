@@ -18,7 +18,8 @@ import { UpdateUserDto } from '../api/dtos/update-locale.dto';
 
 import { t } from 'src/common/messages';
 import { Locale as CommonLocale, normalizeLocale } from 'src/common/i18n';
-import type { Locale as PrismaLocale } from '@prisma/client';
+import type { Locale as PrismaLocale, WishVisibility } from '@prisma/client';
+import { verifyPassword } from 'src/common/password';
 import { userEntityLabel } from '../api/dtos/user.i18n';
 
 type LocaleLike = CommonLocale | PrismaLocale | undefined;
@@ -199,6 +200,25 @@ export class UserService {
     }
   }
 
+  /** Для ApiAuthGuard (Bearer-путь): без исключений, null если не найден. */
+  async findByTelegramId(telegramId: bigint): Promise<UserModel | null> {
+    return this.repo.findByTelegramId(telegramId);
+  }
+
+  /**
+   * Для /api/auth/login: null при любой ошибке (нет логина, нет пароля,
+   * неверный пароль) — наружу уходит одинаковый 401 без деталей.
+   */
+  async validateCredentials(
+    login: string,
+    password: string,
+  ): Promise<UserModel | null> {
+    const found = await this.repo.findAuthByLogin(login);
+    if (!found?.passwordHash) return null;
+    if (!verifyPassword(password, found.passwordHash)) return null;
+    return found.user;
+  }
+
   async findByUsername(
     username: string,
     responseLocale?: LocaleLike,
@@ -247,6 +267,7 @@ export class UserService {
       firstName?: string | null;
       lastName?: string | null;
       preferredLocale?: CommonLocale;
+      defaultVisibility?: WishVisibility;
     },
     responseLocale?: LocaleLike,
   ): Promise<{ message: string; data: UserModel }> {
@@ -259,6 +280,7 @@ export class UserService {
         firstName: patch.firstName ?? null,
         lastName: patch.lastName ?? null,
         preferredLocale: patch.preferredLocale ?? undefined,
+        defaultVisibility: patch.defaultVisibility ?? undefined,
       });
       if (!updated) throw new NotFoundException(t('NOT_FOUND', loc, E));
 

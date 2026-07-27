@@ -36,7 +36,12 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
-  app.enableCors({ origin: '*', credentials: true });
+  // В проде WEBAPP_ORIGIN — домен(ы) miniapp через запятую; без него dev-режим
+  // остаётся открытым.
+  const corsOrigin = process.env.WEBAPP_ORIGIN
+    ? process.env.WEBAPP_ORIGIN.split(',').map((o) => o.trim())
+    : '*';
+  app.enableCors({ origin: corsOrigin, credentials: true });
   app.enableShutdownHooks();
 
   const PORT = Number(process.env.PORT) || 4002;

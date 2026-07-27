@@ -20,17 +20,72 @@ enum Locale {
   KK
 }
 
+enum WishVisibility {
+  PUBLIC
+  FRIENDS
+  CUSTOM
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
 model User {
-  id              Int       @id @default(autoincrement())
-  telegramId      BigInt    @unique
-  username        String?
-  firstName       String?
-  lastName        String?
-  preferredLocale Locale    @default(EN)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  wishes          Wishlist[]        @relation("UserWishes")
-  ordered         Wishlist[]        @relation("UserOrderedWishes")
+  id                Int            @id @default(autoincrement())
+  telegramId        BigInt         @unique
+  username          String?
+  login             String?        @unique
+  passwordHash      String?
+  firstName         String?
+  lastName          String?
+  preferredLocale   Locale         @default(EN)
+  defaultVisibility WishVisibility @default(PUBLIC)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  wishes            Wishlist[]     @relation("UserWishes")
+  ordered           Wishlist[]     @relation("UserOrderedWishes")
+  subscriptions     Subscription[] @relation("SubscriptionsOut")
+  subscribers       Subscription[] @relation("SubscriptionsIn")
+  friendRequestsOut Friendship[]   @relation("FriendshipOut")
+  friendRequestsIn  Friendship[]   @relation("FriendshipIn")
+  wishAccesses      WishAccess[]
+}
+
+model Subscription {
+  id           Int      @id @default(autoincrement())
+  subscriberId Int
+  targetId     Int
+  subscriber   User     @relation("SubscriptionsOut", fields: [subscriberId], references: [id], onDelete: Cascade)
+  target       User     @relation("SubscriptionsIn", fields: [targetId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([subscriberId, targetId])
+  @@index([targetId])
+}
+
+model Friendship {
+  id          Int              @id @default(autoincrement())
+  requesterId Int
+  addresseeId Int
+  status      FriendshipStatus @default(PENDING)
+  requester   User             @relation("FriendshipOut", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("FriendshipIn", fields: [addresseeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId])
+}
+
+model WishAccess {
+  wishId String
+  userId Int
+  wish   Wishlist @relation(fields: [wishId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([wishId, userId])
+  @@index([userId])
 }
 
 model Wishlist {
@@ -46,6 +101,8 @@ model Wishlist {
   orderedBy     User?          @relation("UserOrderedWishes", fields: [orderedById], references: [id], onDelete: SetNull)
 
   status        WishlistStatus @default(OPEN)
+  visibility    WishVisibility @default(PUBLIC)
+  accesses      WishAccess[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

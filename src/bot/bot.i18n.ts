@@ -12,7 +12,8 @@ export const UI = {
     sendName: '✍️ Send a name for your wish.',
     sendPriceOrSkip: '💰 Send a price (e.g., 19990.50), or press “Skip”.',
     sendUrlOrSkip: '🔗 Send a link (URL), or press “Skip”.',
-    sendDescriptionOrSkip: '📝 Send additional info (description) or press «Skip».',
+    sendDescriptionOrSkip:
+      '📝 Send additional info (description) or press «Skip».',
     invalidPrice:
       '❗ Invalid price. Please send a non-negative number like 12000 or 199.99.',
     askUsername: '🔎 Send Telegram username (with or without @).',
@@ -37,8 +38,16 @@ export const UI = {
     owner: 'Owner',
     reservedBy: 'Reserved by',
     orderedBy: 'Ordered by',
+    notifNewWish: (owner: string, wish: string) =>
+      `🎁 ${owner} added a new wish: «${wish}»`,
+    friendRequestFrom: (name: string) =>
+      `🤝 ${name} wants to add you as a friend.`,
 
     buttons: {
+      subscribe: '🔔 Subscribe',
+      unsubscribe: '🔕 Unsubscribe',
+      addFriend: '🤝 Add friend',
+      acceptFriend: '✅ Accept request',
       add: '➕ Add',
       viewMine: '📜 View My Wishlist',
       viewOthers: '🔍 View Others',
@@ -65,7 +74,8 @@ export const UI = {
       enterNewName: '✍️ Enter a new name.',
       enterNewPrice: '💰 Enter a new price (e.g., 19990.50).',
       enterNewUrl: '🔗 Enter a new URL (or “-” to clear).',
-      enterNewDescription: 'Write additional info (description). Send "-" to clear.',
+      enterNewDescription:
+        'Write additional info (description). Send "-" to clear.',
       okPressSave: (saveLabel: string) =>
         `📝 OK — press “${saveLabel}” to apply.`,
     },
@@ -82,7 +92,8 @@ export const UI = {
     sendPriceOrSkip:
       '💰 Пришлите цену (например, 19990.50) или нажмите «Пропустить».',
     sendUrlOrSkip: '🔗 Пришлите ссылку (URL) или нажмите «Пропустить».',
-    sendDescriptionOrSkip: '📝 Отправьте дополнительную информацию (описание) или нажмите «Пропустить».',
+    sendDescriptionOrSkip:
+      '📝 Отправьте дополнительную информацию (описание) или нажмите «Пропустить».',
     invalidPrice:
       '❗ Некорректная цена. Пришлите неотрицательное число, например 12000 или 199.99.',
     askUsername: '🔎 Пришлите Telegram username (с @ или без).',
@@ -107,8 +118,16 @@ export const UI = {
     owner: 'Владелец',
     reservedBy: 'Кем зарезервировано',
     orderedBy: 'Кем куплено',
+    notifNewWish: (owner: string, wish: string) =>
+      `🎁 ${owner} добавил(а) новое желание: «${wish}»`,
+    friendRequestFrom: (name: string) =>
+      `🤝 ${name} хочет добавить вас в друзья.`,
 
     buttons: {
+      subscribe: '🔔 Подписаться',
+      unsubscribe: '🔕 Отписаться',
+      addFriend: '🤝 В друзья',
+      acceptFriend: '✅ Принять заявку',
       add: '➕ Добавить',
       viewMine: '📜 Мои желания',
       viewOthers: '🔍 Посмотреть других',
@@ -135,7 +154,8 @@ export const UI = {
       enterNewName: '✍️ Введите новое название.',
       enterNewPrice: '💰 Введите новую цену (например, 19990.50).',
       enterNewUrl: '🔗 Введите новый URL (или «-» чтобы очистить).',
-      enterNewDescription: 'Напишите дополнительную информацию (описание). Чтобы очистить, отправьте "-".',
+      enterNewDescription:
+        'Напишите дополнительную информацию (описание). Чтобы очистить, отправьте "-".',
       okPressSave: (saveLabel: string) =>
         `📝 ОК — нажмите «${saveLabel}», чтобы применить.`,
     },
@@ -153,7 +173,8 @@ export const UI = {
       '💰 Бағаны жіберіңіз (мысалы, 19990.50) немесе «Өткізу» батырмасын басыңыз.',
     sendUrlOrSkip:
       '🔗 Сілтемені (URL) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
-    sendDescriptionOrSkip: '📝 Қосымша ақпаратты (сипаттаманы) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
+    sendDescriptionOrSkip:
+      '📝 Қосымша ақпаратты (сипаттаманы) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
     invalidPrice:
       '❗ Дұрыс емес баға. Теріс емес сан жіберіңіз, мысалы 12000 немесе 199.99.',
     askUsername: '🔎 Telegram пайдаланушы атын жіберіңіз.',
@@ -178,7 +199,15 @@ export const UI = {
     owner: 'Иесі',
     reservedBy: 'Кім броньдады',
     orderedBy: 'Кім сатып алды',
+    notifNewWish: (owner: string, wish: string) =>
+      `🎁 ${owner} жаңа тілек қосты: «${wish}»`,
+    friendRequestFrom: (name: string) =>
+      `🤝 ${name} сізді досқа қосқысы келеді.`,
     buttons: {
+      subscribe: '🔔 Жазылу',
+      unsubscribe: '🔕 Жазылудан бас тарту',
+      addFriend: '🤝 Досқа қосу',
+      acceptFriend: '✅ Өтінімді қабылдау',
       add: '➕ Қосу',
       viewMine: '📜 Менің тізімім',
       viewOthers: '🔍 Басқаларды көру',
@@ -205,7 +234,8 @@ export const UI = {
       enterNewName: '✍️ Жаңа атауды енгізіңіз.',
       enterNewPrice: '💰 Жаңа бағаны енгізіңіз (мысалы, 19990.50).',
       enterNewUrl: '🔗 Жаңа URL енгізіңіз (немесе «-» — тазарту).',
-      enterNewDescription: 'Қосымша ақпаратты (сипаттама) жазыңыз. Тазарту үшін "-" жіберіңіз.',
+      enterNewDescription:
+        'Қосымша ақпаратты (сипаттама) жазыңыз. Тазарту үшін "-" жіберіңіз.',
       okPressSave: (saveLabel: string) =>
         `📝 ОК — өзгерістерді қолдану үшін «${saveLabel}» батырмасын басыңыз.`,
     },

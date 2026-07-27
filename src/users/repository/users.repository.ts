@@ -1,4 +1,5 @@
 import { Locale } from 'src/common/i18n';
+import type { WishVisibility } from '@prisma/client';
 import { UserModel } from './users.model';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -7,6 +8,9 @@ export interface IUserRepository {
   findById(id: number): Promise<UserModel | null>;
   findByTelegramId(telegramId: bigint): Promise<UserModel | null>;
   findByUsername(username: string): Promise<UserModel | null>;
+  findAuthByLogin(
+    login: string,
+  ): Promise<{ user: UserModel; passwordHash: string | null } | null>;
 
   list(): Promise<UserModel[]>;
 
@@ -45,6 +49,7 @@ export interface IUserRepository {
       firstName?: string | null;
       lastName?: string | null;
       preferredLocale?: Locale;
+      defaultVisibility?: WishVisibility;
     },
   ): Promise<UserModel | null>;
 }
@@ -56,6 +61,7 @@ function map(entity: any): UserModel {
     firstName: entity.firstName,
     lastName: entity.lastName,
     preferredLocale: entity.preferredLocale as Locale,
+    defaultVisibility: entity.defaultVisibility as WishVisibility,
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
   };
@@ -83,6 +89,18 @@ export class UserRepository implements IUserRepository {
       where: { username: { equals: trimmed, mode: 'insensitive' } },
     });
     return user ? map(user) : null;
+  }
+
+  // Для /api/auth/login: модель + хэш пароля одним запросом.
+  async findAuthByLogin(
+    login: string,
+  ): Promise<{ user: UserModel; passwordHash: string | null } | null> {
+    const trimmed = login.trim();
+    if (!trimmed) return null;
+    const row = await this.prisma.user.findUnique({
+      where: { login: trimmed },
+    });
+    return row ? { user: map(row), passwordHash: row.passwordHash } : null;
   }
 
   async list(): Promise<UserModel[]> {
@@ -170,6 +188,7 @@ export class UserRepository implements IUserRepository {
       firstName?: string | null;
       lastName?: string | null;
       preferredLocale?: Locale;
+      defaultVisibility?: WishVisibility;
     },
   ): Promise<UserModel | null> {
     try {
@@ -180,6 +199,7 @@ export class UserRepository implements IUserRepository {
           firstName: data.firstName ?? undefined,
           lastName: data.lastName ?? undefined,
           preferredLocale: data.preferredLocale ?? undefined,
+          defaultVisibility: data.defaultVisibility ?? undefined,
         },
       });
       return map(updated);

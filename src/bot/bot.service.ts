@@ -7,6 +7,7 @@ import { UI, UILang } from './bot.i18n';
 import { WishlistModel } from 'src/wishlist/repository/wishlist.model';
 import { UserService } from 'src/users/service/users.service';
 import { WishlistsService } from 'src/wishlist/service/wishlist.service';
+import { SocialService } from 'src/social/service/social.service';
 import { WishlistStatus } from '@prisma/client';
 
 // ---------- utils ----------
@@ -230,6 +231,7 @@ export class BotService {
     private readonly config: ConfigService,
     private readonly users: UserService,
     private readonly wishes: WishlistsService,
+    private readonly social: SocialService,
   ) {
     const token = this.config.get<string>('BOT_TOKEN');
     if (!token) throw new Error('BOT_TOKEN is not set');
@@ -256,14 +258,47 @@ export class BotService {
       }
     });
 
-    this.bot.launch();
-    this.logger.verbose('Bot is running…');
+    // BOT_DISABLED=1 — режим «только HTTP API» (разработка miniapp без
+    // перехвата polling'а у боевого бота).
+    if (this.config.get<string>('BOT_DISABLED') === '1') {
+      this.logger.warn('Bot polling disabled (BOT_DISABLED=1)');
+    } else {
+      this.bot.launch();
+      this.logger.verbose('Bot is running…');
 
-    process.once('SIGINT', () => this.bot.stop('SIGINT'));
-    process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
+      process.once('SIGINT', () => this.bot.stop('SIGINT'));
+      process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
+    }
   }
 
   // --- helpers ---
+
+  /**
+   * Отправка сервисного сообщения пользователю (уведомления подписок,
+   * заявки в друзья). Ошибки доставки глотаются: пользователь мог
+   * заблокировать бота — рассылку это ронять не должно.
+   */
+  async sendNotification(
+    telegramId: bigint,
+    text: string,
+    keyboard?: ReturnType<typeof Markup.inlineKeyboard>,
+  ): Promise<void> {
+    try {
+      await this.bot.telegram.sendMessage(
+        telegramId.toString(),
+        escapeMarkdownV2(text),
+        {
+          parse_mode: 'MarkdownV2',
+          link_preview_options: { is_disabled: true },
+          ...(keyboard ?? {}),
+        },
+      );
+    } catch (err) {
+      this.logger.warn(
+        `sendNotification failed for telegramId=${telegramId}: ${(err as Error).message}`,
+      );
+    }
+  }
 
   private async ensureMe(ctx: BotContext) {
     // either from session cache or upsert by telegramId
@@ -601,66 +636,72 @@ export class BotService {
       }
     });
 
-// Edit menu — не перехватываем edit_name|price|url|description_
-this.bot.action(/^edit_(?!name_|price_|url_|description_)([\w-]+)$/, async (ctx) => {
-  await ctx.answerCbQuery().catch(() => {});
-  const id = ctx.match?.[1];
-  if (!id) return;
-  const lang = resolveUILang(ctx);
+    // Edit menu — не перехватываем edit_name|price|url|description_
+    this.bot.action(
+      /^edit_(?!name_|price_|url_|description_)([\w-]+)$/,
+      async (ctx) => {
+        await ctx.answerCbQuery().catch(() => {});
+        const id = ctx.match?.[1];
+        if (!id) return;
+        const lang = resolveUILang(ctx);
 
-  await ctx.reply(escapeMarkdownV2('⚙️'), {
-    parse_mode: 'MarkdownV2',
-    ...editMenu(lang, id),
-  });
-});
+        await ctx.reply(escapeMarkdownV2('⚙️'), {
+          parse_mode: 'MarkdownV2',
+          ...editMenu(lang, id),
+        });
+      },
+    );
 
-// Choose field to edit
-this.bot.action(
-  /^edit_(name|price|url|description)_([\w-]+)$/,
-  async (ctx) => {
-    await ctx.answerCbQuery().catch(() => {});
-    const field = ctx.match?.[1] as 'name' | 'price' | 'url' | 'description';
-    const id = ctx.match?.[2];
-    if (!id || !field) return;
+    // Choose field to edit
+    this.bot.action(
+      /^edit_(name|price|url|description)_([\w-]+)$/,
+      async (ctx) => {
+        await ctx.answerCbQuery().catch(() => {});
+        const field = ctx.match?.[1] as
+          | 'name'
+          | 'price'
+          | 'url'
+          | 'description';
+        const id = ctx.match?.[2];
+        if (!id || !field) return;
 
-    const lang = resolveUILang(ctx);
-    const T = UI[lang];
+        const lang = resolveUILang(ctx);
+        const T = UI[lang];
 
-    try {
-      const fresh = await this.wishes.findOne(id);
-      ctx.session.editingItem = {
-        id: fresh.id,
-        name: fresh.name,
-        price: fresh.price,
-        url: fresh.url,
-        description: fresh.description,
-        ownerId: fresh.ownerId,
-      };
-      ctx.session.editingField = field;
-      ctx.session.editingItemId = id;
+        try {
+          const fresh = await this.wishes.findOne(id);
+          ctx.session.editingItem = {
+            id: fresh.id,
+            name: fresh.name,
+            price: fresh.price,
+            url: fresh.url,
+            description: fresh.description,
+            ownerId: fresh.ownerId,
+          };
+          ctx.session.editingField = field;
+          ctx.session.editingItemId = id;
 
-      const hint =
-        field === 'name'
-          ? T.hints.enterNewName
-          : field === 'price'
-            ? T.hints.enterNewPrice
-            : field === 'url'
-              ? T.hints.enterNewUrl
-              : T.hints.enterNewDescription;
+          const hint =
+            field === 'name'
+              ? T.hints.enterNewName
+              : field === 'price'
+                ? T.hints.enterNewPrice
+                : field === 'url'
+                  ? T.hints.enterNewUrl
+                  : T.hints.enterNewDescription;
 
-      await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
-    } catch {
-      const msg =
-        lang === 'RU'
-          ? 'Элемент не найден.'
-          : lang === 'KK'
-            ? 'Элемент табылмады.'
-            : 'Item not found.';
-      await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-    }
-  },
-);
-
+          await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
+        } catch {
+          const msg =
+            lang === 'RU'
+              ? 'Элемент не найден.'
+              : lang === 'KK'
+                ? 'Элемент табылмады.'
+                : 'Item not found.';
+          await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+        }
+      },
+    );
 
     // Save changes
     this.bot.action(/^save_([\w-]+)$/, async (ctx) => {
@@ -800,6 +841,10 @@ this.bot.action(
       try {
         const me = await this.ensureMe(ctx);
         const item = await this.wishes.findOne(id);
+        // Невидимое желание не палим — отвечаем как про несуществующее
+        if (!(await this.wishes.canView(item, me.id))) {
+          throw new NotFoundException();
+        }
         await ctx.reply(renderWishDetails(lang, item), {
           parse_mode: 'MarkdownV2',
           ...itemButtonsOthersDynamic(lang, item, me.id),
@@ -932,6 +977,116 @@ this.bot.action(
       }
     });
 
+    // Subscribe / unsubscribe to someone's wishlist
+    this.bot.action(/^sub_(\d+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const targetId = Number(ctx.match?.[1]);
+      if (!targetId) return;
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+      const me = await this.ensureMe(ctx);
+      const res = await this.social.subscribe(me.id, targetId, lang);
+      await ctx.reply(escapeMarkdownV2(res.message), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.unsubscribe, `unsub_${targetId}`)],
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
+      });
+    });
+
+    this.bot.action(/^unsub_(\d+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const targetId = Number(ctx.match?.[1]);
+      if (!targetId) return;
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+      const me = await this.ensureMe(ctx);
+      const res = await this.social.unsubscribe(me.id, targetId, lang);
+      await ctx.reply(escapeMarkdownV2(res.message), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.subscribe, `sub_${targetId}`)],
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
+      });
+    });
+
+    // Friend request
+    this.bot.action(/^fr_req_(\d+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const targetId = Number(ctx.match?.[1]);
+      if (!targetId) return;
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+      const me = await this.ensureMe(ctx);
+
+      try {
+        const res = await this.social.requestFriend(me.id, targetId, lang);
+
+        if (res.outcome === 'REQUESTED') {
+          // Сообщение адресату с кнопкой принятия — в его локали
+          const target = await this.users.findOne(targetId);
+          const targetT = UI[target.preferredLocale] ?? UI.EN;
+          const myName = ctx.from?.username
+            ? `@${ctx.from.username}`
+            : ((ctx.from as any)?.first_name ?? 'Erkelik');
+          await this.sendNotification(
+            target.telegramId,
+            targetT.friendRequestFrom(myName),
+            Markup.inlineKeyboard([
+              [
+                Markup.button.callback(
+                  targetT.buttons.acceptFriend,
+                  `fr_acc_${res.friendshipId}`,
+                ),
+              ],
+            ]),
+          );
+        }
+
+        await ctx.reply(escapeMarkdownV2(res.message), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch (e) {
+        const msg =
+          e instanceof Error && 'getResponse' in e
+            ? (e as any).message
+            : T.notSpecified;
+        await ctx.reply(escapeMarkdownV2(String(msg)), {
+          parse_mode: 'MarkdownV2',
+        });
+      }
+    });
+
+    // Accept friend request
+    this.bot.action(/^fr_acc_(\d+)$/, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const friendshipId = Number(ctx.match?.[1]);
+      if (!friendshipId) return;
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
+      const me = await this.ensureMe(ctx);
+
+      try {
+        const res = await this.social.acceptFriend(friendshipId, me.id, lang);
+        await ctx.reply(escapeMarkdownV2(res.message), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : T.notSpecified;
+        await ctx.reply(escapeMarkdownV2(String(msg)), {
+          parse_mode: 'MarkdownV2',
+        });
+      }
+    });
+
     // Text handler
     this.bot.on('text', async (ctx) => {
       const lang = resolveUILang(ctx);
@@ -963,15 +1118,33 @@ this.bot.action(
           }
           throw e;
         }
-        const list = await this.wishes.listByOwner(u.id, {
+        const me = await this.ensureMe(ctx);
+        // Чужой список — только то, что видно смотрящему (PUBLIC/FRIENDS/CUSTOM)
+        const list = await this.wishes.listVisibleByOwner(u.id, me.id, {
           statuses: [WishlistStatus.OPEN],
           orderBy: 'createdAt',
           sort: 'desc',
         });
+
+        const [subscribed, friends] = await Promise.all([
+          this.social.isSubscribed(me.id, u.id),
+          this.social.areFriends(me.id, u.id),
+        ]);
+        const socialRow = [
+          Markup.button.callback(
+            subscribed ? T.buttons.unsubscribe : T.buttons.subscribe,
+            subscribed ? `unsub_${u.id}` : `sub_${u.id}`,
+          ),
+          ...(friends || me.id === u.id
+            ? []
+            : [Markup.button.callback(T.buttons.addFriend, `fr_req_${u.id}`)]),
+        ];
+
         if (!list.length) {
           await ctx.reply(escapeMarkdownV2(T.userHasNoWishes), {
             parse_mode: 'MarkdownV2',
             ...Markup.inlineKeyboard([
+              socialRow,
               [Markup.button.callback(T.buttons.menu, 'menu')],
             ]),
           });
@@ -981,7 +1154,10 @@ this.bot.action(
 
         await ctx.reply(
           escapeMarkdownV2(UI[lang].listTitleOthers(u.username ?? raw)),
-          { parse_mode: 'MarkdownV2' },
+          {
+            parse_mode: 'MarkdownV2',
+            ...Markup.inlineKeyboard([socialRow]),
+          },
         );
         for (const it of list) {
           await ctx.reply(escapeMarkdownV2(it.name), {
