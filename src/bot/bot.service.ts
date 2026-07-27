@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Markup, Telegraf, session } from 'telegraf';
 import type { BotContext } from './bot.types';
 import { UI, UILang } from './bot.i18n';
+import { localeFromLanguageCode } from 'src/common/i18n';
 
 import { WishlistModel } from 'src/wishlist/repository/wishlist.model';
 import { UserService } from 'src/users/service/users.service';
@@ -30,10 +31,8 @@ function normalizePriceInput(raw: string): string | null {
 function resolveUILang(ctx: BotContext): UILang {
   // cached session locale if exists
   if (ctx.session?.me?.locale) return ctx.session.me.locale;
-  const lc = (ctx.from as any)?.language_code?.toString().toLowerCase();
-  if (lc === 'ru') return 'RU';
-  if (lc === 'kk' || lc === 'kz') return 'KK';
-  return 'EN';
+  const lc = (ctx.from as any)?.language_code?.toString();
+  return localeFromLanguageCode(lc) ?? 'EN';
 }
 
 function buildMainMenu(lang: UILang) {
@@ -307,11 +306,13 @@ export class BotService {
     const username = ctx.from!.username ?? null;
     const firstName = (ctx.from as any).first_name ?? null;
     const lastName = (ctx.from as any).last_name ?? null;
+    // язык клиента — только как начальный при создании: сохранённый в базе
+    // выбор (например, сделанный в miniapp) не перетирается
     const lang = resolveUILang(ctx);
     const { data } = await this.users.registerOrUpdateByTelegramId(
       tgId,
       username,
-      { firstName, lastName, preferredLocale: lang },
+      { firstName, lastName, initialPreferredLocale: lang },
     );
     const locale = data.preferredLocale ?? 'EN';
     ctx.session.me = { id: data.id, telegramId: tgId, locale };

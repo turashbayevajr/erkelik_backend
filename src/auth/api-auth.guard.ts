@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { localeFromLanguageCode } from 'src/common/i18n';
 import { verifyInitData } from 'src/common/init-data';
 import { verifyJwt } from 'src/common/jwt';
 import { UserService } from 'src/users/service/users.service';
@@ -57,6 +58,9 @@ export class ApiAuthGuard implements CanActivate {
         {
           firstName: verified.user.first_name ?? null,
           lastName: verified.user.last_name ?? null,
+          initialPreferredLocale: localeFromLanguageCode(
+            verified.user.language_code,
+          ),
         },
       );
       return data;

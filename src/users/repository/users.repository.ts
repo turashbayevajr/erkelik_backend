@@ -40,6 +40,8 @@ export interface IUserRepository {
     firstName?: string | null;
     lastName?: string | null;
     preferredLocale?: Locale;
+    /** Локаль только для create: существующий выбор не перезаписывается. */
+    initialPreferredLocale?: Locale;
   }): Promise<UserModel>;
 
   updateByTelegramId(
@@ -159,6 +161,7 @@ export class UserRepository implements IUserRepository {
     firstName?: string | null;
     lastName?: string | null;
     preferredLocale?: Locale;
+    initialPreferredLocale?: Locale;
   }): Promise<UserModel> {
     const up = await this.prisma.user.upsert({
       where: { telegramId: data.telegramId },
@@ -167,7 +170,8 @@ export class UserRepository implements IUserRepository {
         username: data.username ?? null,
         firstName: data.firstName ?? null,
         lastName: data.lastName ?? null,
-        preferredLocale: data.preferredLocale ?? 'EN',
+        preferredLocale:
+          data.preferredLocale ?? data.initialPreferredLocale ?? 'EN',
       },
       update: {
         // Telegram profile may change; update only when provided

@@ -30,3 +30,15 @@ export function isLocale(x: unknown): x is Locale {
 export function normalizeLocale(x?: unknown): Locale {
   return isLocale(x) ? x : 'EN';
 }
+
+/** Locale из телеграмного language_code ('ru', 'kk'/'kz', 'en-US'…). */
+export function localeFromLanguageCode(
+  code?: string | null,
+): Locale | undefined {
+  const lc = code?.toLowerCase();
+  if (!lc) return undefined;
+  if (lc.startsWith('ru')) return 'RU';
+  if (lc.startsWith('kk') || lc.startsWith('kz')) return 'KK';
+  if (lc.startsWith('en')) return 'EN';
+  return undefined;
+}

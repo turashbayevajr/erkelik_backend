@@ -170,6 +170,8 @@ export class UserService {
       firstName?: string | null;
       lastName?: string | null;
       preferredLocale?: CommonLocale;
+      /** Локаль только для первого создания — выбор в базе не перетирается. */
+      initialPreferredLocale?: CommonLocale;
     },
     responseLocale?: LocaleLike,
   ): Promise<{ message: string; data: UserModel }> {
@@ -183,6 +185,7 @@ export class UserService {
         firstName: profile?.firstName ?? null,
         lastName: profile?.lastName ?? null,
         preferredLocale: profile?.preferredLocale ?? undefined,
+        initialPreferredLocale: profile?.initialPreferredLocale ?? undefined,
       });
 
       const isNew = data.createdAt.getTime() === data.updatedAt.getTime();
