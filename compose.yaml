@@ -1,3 +1,9 @@
+# Весь стек одним файлом:
+#   docker compose up -d --build
+# Miniapp: http://localhost:8081 · API: http://localhost:8081/api (или напрямую :4002)
+# Только база (для npm run start:dev):
+#   docker compose up -d wishlistdb
+# Порты публикуются на 127.0.0.1 — наружу смотрит только reverse proxy (Caddy).
 services:
   wishlistdb:
     image: postgres:16-alpine
@@ -18,17 +24,31 @@ services:
       timeout: 5s
       retries: 20
 
-  backend:
+  api:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: erkelik-backend
+      dockerfile: docker/api.Dockerfile
+    container_name: erkelik-api
     restart: unless-stopped
     env_file: .env
+    environment:
+      PORT: 4000
     depends_on:
       wishlistdb:
         condition: service_healthy
     ports:
       - "127.0.0.1:4002:4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    container_name: erkelik-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8081:80"
+
 volumes:
   db-data:

@@ -62,3 +62,6 @@ webapp/dist
 
 # local Claude Code config
 .claude/
+
+# deploy target (host/path), не коммитится
+.env.deploy
