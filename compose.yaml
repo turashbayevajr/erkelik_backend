@@ -11,7 +11,7 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -29,6 +29,6 @@ services:
       wishlistdb:
         condition: service_healthy
     ports:
-      - "4002:4000"
+      - "127.0.0.1:4002:4000"
 volumes:
   db-data:
