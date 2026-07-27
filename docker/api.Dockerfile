@@ -26,6 +26,10 @@ COPY --from=build /app/dist ./dist
 COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY prisma/migrations ./prisma/migrations
 
+# клиент генерируется в этом слое: npm ci выше ставит чистый @prisma/client
+# без сгенерированного кода (схемы в тот момент ещё нет в образе)
+RUN npx prisma generate
+
 EXPOSE 4000
 # миграции применяются на старте — рестарт контейнера безопасен (идемпотентно)
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
