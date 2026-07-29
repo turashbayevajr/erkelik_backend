@@ -12,6 +12,7 @@ export interface ISocialRepository {
   deleteSubscription(subscriberId: number, targetId: number): Promise<void>;
   isSubscribed(subscriberId: number, targetId: number): Promise<boolean>;
   listSubscribers(targetId: number): Promise<SubscriberModel[]>;
+  listSubscriptions(subscriberId: number): Promise<FriendModel[]>;
 
   findFriendship(a: number, b: number): Promise<FriendshipModel | null>;
   findFriendshipById(id: number): Promise<FriendshipModel | null>;
@@ -143,6 +144,20 @@ export class SocialRepository implements ISocialRepository {
       select: { id: true },
     });
     return Boolean(found);
+  }
+
+  async listSubscriptions(subscriberId: number): Promise<FriendModel[]> {
+    const rows = await this.prisma.subscription.findMany({
+      where: { subscriberId },
+      select: {
+        target: { select: { id: true, username: true, firstName: true } },
+      },
+    });
+    return rows.map((r) => ({
+      userId: r.target.id,
+      username: r.target.username,
+      firstName: r.target.firstName,
+    }));
   }
 
   async listFriends(userId: number): Promise<FriendModel[]> {

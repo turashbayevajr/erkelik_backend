@@ -62,6 +62,10 @@ export class SocialService {
     return this.repo.listSubscribers(targetId);
   }
 
+  async listSubscriptions(subscriberId: number): Promise<FriendModel[]> {
+    return this.repo.listSubscriptions(subscriberId);
+  }
+
   /**
    * Заявка в друзья. Встречная PENDING-заявка от адресата автоматически
    * принимается (оба хотят дружить — лишний шаг не нужен).

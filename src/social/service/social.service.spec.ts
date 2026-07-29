@@ -80,6 +80,15 @@ class FakeSocialRepo implements ISocialRepository {
   async listFriends(): Promise<FriendModel[]> {
     return [];
   }
+  async listSubscriptions(subscriberId: number): Promise<FriendModel[]> {
+    return [...this.subs]
+      .filter((k) => k.startsWith(`${subscriberId}:`))
+      .map((k) => ({
+        userId: Number(k.split(':')[1]),
+        username: null,
+        firstName: null,
+      }));
+  }
   async listFriendIds(userId: number): Promise<number[]> {
     return this.friendships
       .filter(
@@ -116,6 +125,14 @@ describe('SocialService', () => {
       await service.subscribe(3, 2);
       const subs = await service.listSubscribers(2);
       expect(subs.map((s) => s.userId).sort()).toEqual([1, 3]);
+    });
+
+    it('lists own subscriptions (targets I follow)', async () => {
+      await service.subscribe(1, 2);
+      await service.subscribe(1, 3);
+      await service.subscribe(2, 3);
+      const targets = await service.listSubscriptions(1);
+      expect(targets.map((s) => s.userId).sort()).toEqual([2, 3]);
     });
 
     it('is idempotent on duplicate subscribe', async () => {

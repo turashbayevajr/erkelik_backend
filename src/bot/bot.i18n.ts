@@ -44,6 +44,8 @@ export const UI = {
       `✏️ The wish «${wish}» you reserved was edited by its owner — check the details.`,
     friendRequestFrom: (name: string) =>
       `🤝 ${name} wants to add you as a friend.`,
+    noFriends: 'No friends yet — open someone’s wishlist and send a request.',
+    noSubscriptions: 'No subscriptions yet — find a wishlist by @username.',
 
     buttons: {
       subscribe: '🔔 Subscribe',
@@ -68,6 +70,8 @@ export const UI = {
       reserve: '🔒 Reserve',
       back: '↩️ Back',
       viewMyReservations: '🔒 My Reservations',
+      friendsList: '👥 My Friends',
+      subscriptionsList: '🔔 My Subscriptions',
       ordered: '✅ Already bought it',
       fullfilled: '✅ The wish has been fulfilled',
       unreserve: '🔓 Cancel reservation',
@@ -126,6 +130,9 @@ export const UI = {
       `✏️ Желание «${wish}», которое вы забронировали, изменено владельцем — загляните в детали.`,
     friendRequestFrom: (name: string) =>
       `🤝 ${name} хочет добавить вас в друзья.`,
+    noFriends:
+      'Друзей пока нет — откройте чей-нибудь вишлист и отправьте заявку.',
+    noSubscriptions: 'Подписок пока нет — найдите вишлист по @username.',
 
     buttons: {
       subscribe: '🔔 Подписаться',
@@ -150,6 +157,8 @@ export const UI = {
       reserve: '🔒 Зарезервировать',
       back: '↩️ Назад',
       viewMyReservations: '🔒 Мои брони',
+      friendsList: '👥 Мои друзья',
+      subscriptionsList: '🔔 Мои подписки',
       ordered: '✅ Уже куплено',
       fullfilled: '✅ Желание исполнилось',
       unreserve: '🔓 Снять бронь',
@@ -209,6 +218,9 @@ export const UI = {
       `✏️ Сіз броньдаған «${wish}» тілегін иесі өзгертті — егжей-тегжейін қараңыз.`,
     friendRequestFrom: (name: string) =>
       `🤝 ${name} сізді досқа қосқысы келеді.`,
+    noFriends:
+      'Әзірге достар жоқ — біреудің тілектер тізімін ашып, өтінім жіберіңіз.',
+    noSubscriptions: 'Әзірге жазылымдар жоқ — @username арқылы тізім табыңыз.',
     buttons: {
       subscribe: '🔔 Жазылу',
       unsubscribe: '🔕 Жазылудан бас тарту',
@@ -232,6 +244,8 @@ export const UI = {
       reserve: '🔒 Брондау',
       back: '↩️ Артқа',
       viewMyReservations: '🔒 Менің броньдарым',
+      friendsList: '👥 Менің достарым',
+      subscriptionsList: '🔔 Менің жазылымдарым',
       ordered: '✅ Сатып алынды',
       fullfilled: '✅ Еркелігім орындалды',
       unreserve: '🔓 Броньды алып тастау',

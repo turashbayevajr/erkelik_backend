@@ -42,7 +42,20 @@ function buildMainMenu(lang: UILang) {
     [Markup.button.callback(B.viewMine, 'view')],
     [Markup.button.callback(B.viewOthers, 'view_others')],
     [Markup.button.callback(B.viewMyReservations, 'view_reservations')],
+    [
+      Markup.button.callback(B.friendsList, 'friends'),
+      Markup.button.callback(B.subscriptionsList, 'subscriptions'),
+    ],
   ]);
+}
+
+// Строка списка «человек»: имя + @username, ничего лишнего.
+function personLine(p: {
+  username: string | null;
+  firstName: string | null;
+}): string {
+  const name = p.firstName ?? p.username ?? '—';
+  return p.username ? `• ${name} (@${p.username})` : `• ${name}`;
 }
 
 function itemButtonsMine(lang: UILang, id: string) {
@@ -510,6 +523,38 @@ export class BotService {
     });
 
     // View my reservations
+    this.bot.action('friends', async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const T = this.ui(ctx);
+      const me = await this.ensureMe(ctx);
+      const list = await this.social.listFriends(me.id);
+      const text = list.length
+        ? `${T.buttons.friendsList}\n\n${list.map(personLine).join('\n')}`
+        : T.noFriends;
+      await ctx.reply(escapeMarkdownV2(text), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
+      });
+    });
+
+    this.bot.action('subscriptions', async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const T = this.ui(ctx);
+      const me = await this.ensureMe(ctx);
+      const list = await this.social.listSubscriptions(me.id);
+      const text = list.length
+        ? `${T.buttons.subscriptionsList}\n\n${list.map(personLine).join('\n')}`
+        : T.noSubscriptions;
+      await ctx.reply(escapeMarkdownV2(text), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
+      });
+    });
+
     this.bot.action('view_reservations', async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
       const T = this.ui(ctx);
