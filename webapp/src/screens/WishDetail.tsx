@@ -46,7 +46,22 @@ export function WishDetailScreen({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <TopBar title={t.wish} onBack={nav.back} />
+      <TopBar
+        title={t.wish}
+        onBack={nav.back}
+        right={
+          !giver && wish.status !== 'FULFILLED' ? (
+            <button
+              type="button"
+              aria-label={t.edit}
+              onClick={() => nav.push({ name: 'edit', wishId: wish.id })}
+              className="flex h-9 w-9 items-center justify-center text-accent"
+            >
+              <Icon name="pencil" size={19} strokeWidth={2} />
+            </button>
+          ) : undefined
+        }
+      />
       <div className="flex flex-1 flex-col gap-4 px-4 pt-4 pb-[84px]">
         <Thumb imageUrl={wish.imageUrl} size="hero" />
         <div>

@@ -28,6 +28,16 @@ export class SocialController {
     }));
   }
 
+  @Get('subscribers')
+  async subscribers(@CurrentUser() user: UserModel) {
+    const list = await this.social.listSubscribers(user.id);
+    return list.map((s) => ({
+      id: s.userId,
+      username: s.username,
+      firstName: s.firstName,
+    }));
+  }
+
   @Get('requests')
   async requests(@CurrentUser() user: UserModel) {
     const list = await this.social.listIncomingRequests(user.id);

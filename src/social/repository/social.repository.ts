@@ -64,7 +64,13 @@ export class SocialRepository implements ISocialRepository {
       where: { targetId },
       select: {
         subscriber: {
-          select: { id: true, telegramId: true, preferredLocale: true },
+          select: {
+            id: true,
+            telegramId: true,
+            preferredLocale: true,
+            username: true,
+            firstName: true,
+          },
         },
       },
     });
@@ -72,6 +78,8 @@ export class SocialRepository implements ISocialRepository {
       userId: r.subscriber.id,
       telegramId: r.subscriber.telegramId,
       preferredLocale: r.subscriber.preferredLocale,
+      username: r.subscriber.username,
+      firstName: r.subscriber.firstName,
     }));
   }
 

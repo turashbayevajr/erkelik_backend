@@ -8,6 +8,11 @@ import {
   WISH_CREATED,
   WishCreatedEvent,
 } from 'src/wishlist/wish-created.event';
+import {
+  WISH_UPDATED,
+  WishUpdatedEvent,
+} from 'src/wishlist/wish-updated.event';
+import { UserService } from 'src/users/service/users.service';
 
 // Уведомления подписчикам о новом желании. Живёт в bot-слое:
 // домен эмитит wish.created и ничего не знает о Telegram.
@@ -19,6 +24,7 @@ export class WishNotificationsListener {
     private readonly bot: BotService,
     private readonly social: SocialService,
     private readonly wishes: WishlistsService,
+    private readonly users: UserService,
   ) {}
 
   @OnEvent(WISH_CREATED, { async: true })
@@ -45,6 +51,26 @@ export class WishNotificationsListener {
     } catch (err) {
       this.logger.error(
         `wish.created notification failed for wish=${event.wishId}`,
+        (err as Error).stack,
+      );
+    }
+  }
+
+  // Владелец отредактировал забронированное желание — сообщаем дарителю.
+  // Событие адресное (reserverUserId уже проверен доменом), canView не нужен:
+  // даритель и так знает об этом желании.
+  @OnEvent(WISH_UPDATED, { async: true })
+  async handleWishUpdated(event: WishUpdatedEvent): Promise<void> {
+    try {
+      const reserver = await this.users.findOne(event.reserverUserId);
+      const T = UI[reserver.preferredLocale] ?? UI.EN;
+      await this.bot.sendNotification(
+        reserver.telegramId,
+        T.notifWishEdited(event.name),
+      );
+    } catch (err) {
+      this.logger.error(
+        `wish.updated notification failed for wish=${event.wishId}`,
         (err as Error).stack,
       );
     }

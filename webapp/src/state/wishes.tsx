@@ -18,6 +18,7 @@ import {
   subscribeTo,
   unreserveWish,
   unsubscribeFrom,
+  updateWish,
 } from '../api';
 import type { ApiFriendView, ApiWish } from '../api';
 
@@ -105,6 +106,7 @@ type WishesState = {
   toggleSubscribe: () => Promise<void>;
   sendFriendRequest: () => Promise<void>;
   addWish: (w: NewWish) => Promise<void>;
+  updateWish: (id: string, w: NewWish) => Promise<void>;
   reserve: (id: string) => Promise<void>;
   unreserve: (id: string) => Promise<void>;
   markOrdered: (id: string) => Promise<void>;
@@ -196,6 +198,21 @@ export function WishesProvider({ children }: { children: ReactNode }) {
     [reloadMy],
   );
 
+  const updateWishById = useCallback(
+    async (id: string, w: NewWish) => {
+      await updateWish(id, {
+        name: w.name,
+        price: normalizePriceInput(w.price),
+        url: w.url ?? null,
+        description: w.description ?? null,
+        visibility: w.visibility,
+        allowedUserIds: w.allowedUserIds,
+      });
+      await reloadMy();
+    },
+    [reloadMy],
+  );
+
   const reserve = useCallback(
     async (id: string) => {
       try {
@@ -257,6 +274,7 @@ export function WishesProvider({ children }: { children: ReactNode }) {
       toggleSubscribe,
       sendFriendRequest,
       addWish,
+      updateWish: updateWishById,
       reserve,
       unreserve,
       markOrdered,
@@ -275,6 +293,7 @@ export function WishesProvider({ children }: { children: ReactNode }) {
       toggleSubscribe,
       sendFriendRequest,
       addWish,
+      updateWishById,
       reserve,
       unreserve,
       markOrdered,

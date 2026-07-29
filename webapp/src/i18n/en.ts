@@ -63,6 +63,10 @@ export const en: Dict = {
   addFriend: 'Add friend',
   friendRequestSent: 'Request sent',
   noFriendsYet: 'No friends yet — add someone from their wishlist.',
+  subscribersSection: 'Subscribers',
+  noSubscribersYet: 'No subscribers yet — share your wishlist.',
+  editWish: 'Edit wish',
+  edit: 'Edit',
   loginSubtitle:
     'Sign in with your login and password to use the wishlist outside Telegram.',
   loginLabel: 'Login',

@@ -40,6 +40,8 @@ export const UI = {
     orderedBy: 'Ordered by',
     notifNewWish: (owner: string, wish: string) =>
       `🎁 ${owner} added a new wish: «${wish}»`,
+    notifWishEdited: (wish: string) =>
+      `✏️ The wish «${wish}» you reserved was edited by its owner — check the details.`,
     friendRequestFrom: (name: string) =>
       `🤝 ${name} wants to add you as a friend.`,
 
@@ -120,6 +122,8 @@ export const UI = {
     orderedBy: 'Кем куплено',
     notifNewWish: (owner: string, wish: string) =>
       `🎁 ${owner} добавил(а) новое желание: «${wish}»`,
+    notifWishEdited: (wish: string) =>
+      `✏️ Желание «${wish}», которое вы забронировали, изменено владельцем — загляните в детали.`,
     friendRequestFrom: (name: string) =>
       `🤝 ${name} хочет добавить вас в друзья.`,
 
@@ -201,6 +205,8 @@ export const UI = {
     orderedBy: 'Кім сатып алды',
     notifNewWish: (owner: string, wish: string) =>
       `🎁 ${owner} жаңа тілек қосты: «${wish}»`,
+    notifWishEdited: (wish: string) =>
+      `✏️ Сіз броньдаған «${wish}» тілегін иесі өзгертті — егжей-тегжейін қараңыз.`,
     friendRequestFrom: (name: string) =>
       `🤝 ${name} сізді досқа қосқысы келеді.`,
     buttons: {

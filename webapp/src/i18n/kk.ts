@@ -63,6 +63,10 @@ export const kk: Dict = {
   addFriend: 'Досқа қосу',
   friendRequestSent: 'Өтінім жіберілді',
   noFriendsYet: 'Әзірге достар жоқ — біреуді бөтен тілектер тізімінен қосыңыз.',
+  subscribersSection: 'Жазылушылар',
+  noSubscribersYet: 'Әзірге жазылушылар жоқ — тілектер тізіміңізбен бөлісіңіз.',
+  editWish: 'Тілекті өңдеу',
+  edit: 'Өңдеу',
   loginSubtitle:
     'Telegram-нан тыс қолдану үшін логин мен құпиясөзбен кіріңіз.',
   loginLabel: 'Логин',

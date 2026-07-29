@@ -146,6 +146,22 @@ export const createWish = (wish: {
     body: JSON.stringify(wish),
   });
 
+export const updateWish = (
+  id: string,
+  patch: {
+    name?: string;
+    price?: string | null;
+    url?: string | null;
+    description?: string | null;
+    visibility?: ApiVisibility;
+    allowedUserIds?: number[];
+  },
+) =>
+  request<ApiWish>(`/api/wishes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+
 export const deleteWish = (id: string) =>
   request<void>(`/api/wishes/${id}`, { method: 'DELETE' });
 
@@ -167,6 +183,9 @@ export const fetchFriendView = (username: string) =>
   );
 
 export const fetchFriends = () => request<ApiFriend[]>('/api/social/friends');
+
+export const fetchSubscribers = () =>
+  request<ApiFriend[]>('/api/social/subscribers');
 
 export const fetchRequests = () =>
   request<ApiFriend[]>('/api/social/requests');

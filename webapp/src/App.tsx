@@ -20,6 +20,8 @@ function Router() {
       return <MyWishlistScreen />;
     case 'add':
       return <AddWishScreen />;
+    case 'edit':
+      return <AddWishScreen editId={screen.wishId} />;
     case 'friend':
       return <FriendWishlistScreen username={screen.username} />;
     case 'detail':

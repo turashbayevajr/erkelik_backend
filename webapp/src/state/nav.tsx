@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 export type Screen =
   | { name: 'my' }
   | { name: 'add' }
+  | { name: 'edit'; wishId: string }
   | { name: 'friend'; username?: string }
   | { name: 'detail'; wishId: string; context: 'owner' | 'giver' }
   | { name: 'reserved'; ownerName: string }

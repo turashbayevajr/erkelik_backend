@@ -15,6 +15,7 @@ import { normalizeLocale } from 'src/common/i18n';
 import { t } from 'src/common/messages';
 import { SocialService } from 'src/social/service/social.service';
 import { WISH_CREATED, WishCreatedEvent } from '../wish-created.event';
+import { WISH_UPDATED, WishUpdatedEvent } from '../wish-updated.event';
 import {
   IWishlistRepository,
   ListOptions,
@@ -125,6 +126,25 @@ export class WishlistsService {
         visibility: dto.visibility ?? undefined,
         allowedUserIds: dto.allowedUserIds,
       });
+
+      // Даритель узнаёт об изменении содержимого своей брони.
+      // Тайна не нарушается: событие уходит бронирующему, не владельцу.
+      if (
+        this.contentChanged(found, dto) &&
+        found.orderedById != null &&
+        found.orderedById !== found.ownerId &&
+        (found.status === 'RESERVED' || found.status === 'ORDERED')
+      ) {
+        this.events.emit(
+          WISH_UPDATED,
+          new WishUpdatedEvent(
+            updated.id,
+            updated.ownerId,
+            updated.name,
+            found.orderedById,
+          ),
+        );
+      }
       return { message: t('UPDATED_OK', loc, E), data: updated };
     } catch (err: any) {
       if (
@@ -137,6 +157,27 @@ export class WishlistsService {
         throw new ConflictException(t('ALREADY_EXISTS', loc, E));
       throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
     }
+  }
+
+  /** Изменились ли содержательные поля (имя/цена/ссылка/описание). */
+  private contentChanged(
+    found: WishlistModel,
+    dto: UpdateWishlistDto,
+  ): boolean {
+    if (dto.name !== undefined && dto.name !== found.name) return true;
+    if (
+      dto.price !== undefined &&
+      String(dto.price ?? '') !== String(found.price ?? '')
+    )
+      return true;
+    if (dto.url !== undefined && (dto.url ?? null) !== (found.url ?? null))
+      return true;
+    if (
+      dto.description !== undefined &&
+      (dto.description ?? null) !== (found.description ?? null)
+    )
+      return true;
+    return false;
   }
 
   async findAll(): Promise<WishlistModel[]> {

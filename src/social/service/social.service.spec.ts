@@ -30,6 +30,8 @@ class FakeSocialRepo implements ISocialRepository {
         userId: Number(k.split(':')[0]),
         telegramId: BigInt(k.split(':')[0]),
         preferredLocale: 'EN' as const,
+        username: null,
+        firstName: null,
       }));
   }
   async findFriendship(a: number, b: number): Promise<FriendshipModel | null> {

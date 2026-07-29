@@ -24,6 +24,7 @@ export function ProfileScreen() {
   const { me, updateMe } = useAuth();
   const {
     friends,
+    subscribers,
     requests,
     acceptRequest,
     defaultVisibility,
@@ -113,6 +114,22 @@ export function ProfileScreen() {
                 key={f.id}
                 title={f.name}
                 subtitle={`@${f.username}`}
+              />
+            ))
+          )}
+        </ListGroup>
+
+        <ListGroup caption={t.subscribersSection}>
+          {subscribers.length === 0 ? (
+            <div className="px-4 py-3 text-[13.5px] text-ink3">
+              {t.noSubscribersYet}
+            </div>
+          ) : (
+            subscribers.map((s) => (
+              <RowWithAction
+                key={s.id}
+                title={s.name}
+                subtitle={s.username ? `@${s.username}` : undefined}
               />
             ))
           )}

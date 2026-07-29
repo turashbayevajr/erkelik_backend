@@ -61,6 +61,10 @@ export const ru = {
   addFriend: 'В друзья',
   friendRequestSent: 'Заявка отправлена',
   noFriendsYet: 'Друзей пока нет — добавьте кого-нибудь из чужого вишлиста.',
+  subscribersSection: 'Подписчики',
+  noSubscribersYet: 'Подписчиков пока нет — поделитесь своим вишлистом.',
+  editWish: 'Редактировать желание',
+  edit: 'Редактировать',
   loginSubtitle:
     'Войдите по логину и паролю, чтобы пользоваться вишлистом вне Telegram.',
   loginLabel: 'Логин',

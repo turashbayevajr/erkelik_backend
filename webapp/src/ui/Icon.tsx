@@ -25,6 +25,10 @@ const PATHS: Record<string, string[]> = {
     'M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1',
   ],
   check: ['M20 6 9 17l-5-5'],
+  pencil: [
+    'M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z',
+    'M15 5l4 4',
+  ],
   'chevron-left': ['M15 18l-6-6 6-6'],
   'chevron-right': ['M9 18l6-6-6-6'],
   x: ['M18 6 6 18', 'M6 6l12 12'],

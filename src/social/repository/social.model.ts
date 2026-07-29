@@ -4,6 +4,8 @@ export interface SubscriberModel {
   userId: number;
   telegramId: bigint;
   preferredLocale: Locale;
+  username: string | null;
+  firstName: string | null;
 }
 
 export interface FriendModel {

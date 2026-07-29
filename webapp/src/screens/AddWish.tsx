@@ -96,18 +96,23 @@ function PreviewCard({ state }: { state: PreviewState }) {
   );
 }
 
-export function AddWishScreen() {
+// editId превращает экран в редактирование: поля предзаполняются, сохранение
+// идёт через PATCH. Для CUSTOM-желания текущий список доступа с бэка не
+// приходит — пустой выбор при сохранении означает «не менять доступ».
+export function AddWishScreen({ editId }: { editId?: string }) {
   const { t } = useI18n();
   const nav = useNav();
-  const { addWish } = useWishes();
+  const { addWish, updateWish, find } = useWishes();
   const { friends, defaultVisibility } = useSocial();
+  const editing = editId ? find(editId) : undefined;
 
-  const [link, setLink] = useState('');
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [description, setDescription] = useState('');
-  const [visibility, setVisibility] =
-    useState<WishVisibility>(defaultVisibility);
+  const [link, setLink] = useState(editing?.url ?? '');
+  const [name, setName] = useState(editing?.name ?? '');
+  const [price, setPrice] = useState(editing?.price ?? '');
+  const [description, setDescription] = useState(editing?.description ?? '');
+  const [visibility, setVisibility] = useState<WishVisibility>(
+    editing?.visibility ?? defaultVisibility,
+  );
   const [allowed, setAllowed] = useState<number[]>([]);
   const [preview, setPreview] = useState<PreviewState>({ kind: 'idle' });
   const [saving, setSaving] = useState(false);
@@ -139,12 +144,13 @@ export function AddWishScreen() {
   }, [link]);
 
   const canSave =
-    name.trim().length > 0 && (visibility !== 'CUSTOM' || allowed.length > 0);
+    name.trim().length > 0 &&
+    (visibility !== 'CUSTOM' || allowed.length > 0 || Boolean(editId));
 
   const save = () => {
     const domain = parseDomain(link.trim()) ?? undefined;
     setSaving(true);
-    void addWish({
+    const payload = {
       name: name.trim(),
       price: price.trim() || undefined,
       url: link.trim() || undefined,
@@ -152,15 +158,18 @@ export function AddWishScreen() {
       description: description.trim() || undefined,
       imageUrl: preview.kind === 'found' ? preview.imageUrl : undefined,
       visibility,
-      allowedUserIds: visibility === 'CUSTOM' ? allowed : undefined,
-    })
+      // при редактировании пустой выбор = оставить текущий список доступа
+      allowedUserIds:
+        visibility === 'CUSTOM' && allowed.length > 0 ? allowed : undefined,
+    };
+    void (editId ? updateWish(editId, payload) : addWish(payload))
       .then(() => nav.back())
       .catch(() => setSaving(false));
   };
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <TopBar title={t.newWish} onBack={nav.back} />
+      <TopBar title={editId ? t.editWish : t.newWish} onBack={nav.back} />
       <div className="flex flex-1 flex-col gap-4 px-4 pt-[18px] pb-[84px]">
         <Field
           label={t.linkLabel}

@@ -7,7 +7,12 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { acceptFriendRequest, fetchFriends, fetchRequests } from '../api';
+import {
+  acceptFriendRequest,
+  fetchFriends,
+  fetchRequests,
+  fetchSubscribers,
+} from '../api';
 import type { ApiFriend } from '../api';
 import { useAuth } from './auth';
 
@@ -37,6 +42,7 @@ function toFriend(f: ApiFriend): Friend {
 
 type SocialState = {
   friends: Friend[];
+  subscribers: Friend[];
   requests: FriendRequest[];
   defaultVisibility: Visibility;
   acceptRequest: (id: number) => Promise<void>;
@@ -48,11 +54,17 @@ const SocialContext = createContext<SocialState | null>(null);
 export function SocialProvider({ children }: { children: ReactNode }) {
   const { me, updateMe } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [subscribers, setSubscribers] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
 
   const reload = useCallback(async () => {
-    const [fs, rs] = await Promise.all([fetchFriends(), fetchRequests()]);
+    const [fs, ss, rs] = await Promise.all([
+      fetchFriends(),
+      fetchSubscribers(),
+      fetchRequests(),
+    ]);
     setFriends(fs.map(toFriend));
+    setSubscribers(ss.map(toFriend));
     setRequests(rs.map(toFriend));
   }, []);
 
@@ -78,12 +90,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SocialState>(
     () => ({
       friends,
+      subscribers,
       requests,
       defaultVisibility: me?.defaultVisibility ?? 'PUBLIC',
       acceptRequest,
       setDefaultVisibility,
     }),
-    [friends, requests, me, acceptRequest, setDefaultVisibility],
+    [friends, subscribers, requests, me, acceptRequest, setDefaultVisibility],
   );
 
   return (
