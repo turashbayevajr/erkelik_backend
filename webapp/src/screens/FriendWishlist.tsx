@@ -3,9 +3,10 @@ import { useI18n } from '../i18n';
 import { useNav } from '../state/nav';
 import { useWishes } from '../state/wishes';
 import type { Wish } from '../state/wishes';
+import { useSocial } from '../state/social';
 import {
   Button,
-  Field,
+  Combobox,
   GiftCard,
   Icon,
   MainButton,
@@ -13,6 +14,7 @@ import {
   Spinner,
   TopBar,
 } from '../ui';
+import type { ComboOption } from '../ui';
 
 // Экшен-слот карточки чужого вишлиста по статусу и «моя ли бронь».
 function GiftAction({ wish }: { wish: Wish }) {
@@ -70,14 +72,25 @@ function GiftAction({ wish }: { wish: Wish }) {
   );
 }
 
-// Без выбранного друга — форма поиска по @username.
+// Без выбранного друга — поиск по @username с выбором из своих друзей
+// в том же поле.
 function FriendLookup() {
   const { t } = useI18n();
   const nav = useNav();
   const { openFriend, friendLoading, friendNotFound } = useWishes();
+  const { friends } = useSocial();
   const [username, setUsername] = useState('');
 
-  const open = () => void openFriend(username);
+  // Друг без username недоступен: чужой вишлист ищется только по нему.
+  const options: ComboOption[] = friends
+    .filter((f) => f.username)
+    .map((f) => ({
+      value: f.username,
+      title: f.name,
+      subtitle: `@${f.username}`,
+    }));
+
+  const open = (value: string) => void openFriend(value);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -86,12 +99,15 @@ function FriendLookup() {
         <div className="px-1 text-[14px] leading-normal text-ink3">
           {t.friendLookupText}
         </div>
-        <Field
+        <Combobox
           label={t.friendLookupTitle}
           value={username}
           onChange={setUsername}
+          onPick={(option) => open(option.value)}
+          options={options}
           placeholder={t.friendLookupPlaceholder}
           icon="user"
+          listCaption={t.friendLookupPick}
         />
         {friendNotFound && (
           <div className="px-1 text-[13px] text-accent">{t.friendNotFound}</div>
@@ -99,7 +115,7 @@ function FriendLookup() {
       </div>
       <MainButton
         label={t.friendLookupCta}
-        onClick={open}
+        onClick={() => open(username)}
         disabled={username.trim().replace(/^@/, '').length === 0 || friendLoading}
       />
     </div>

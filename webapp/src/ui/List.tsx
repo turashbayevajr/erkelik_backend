@@ -49,24 +49,45 @@ export function ListRow({
   );
 }
 
+// Кликабельна только текстовая часть: слот action может содержать свою
+// кнопку, а кнопка внутри кнопки — невалидная разметка.
 export function RowWithAction({
   title,
   subtitle,
   action,
+  onClick,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  onClick?: () => void;
 }) {
+  const content = (
+    <>
+      <div className="truncate text-[15px] font-medium text-ink">{title}</div>
+      {subtitle && (
+        <div className="mt-px truncate text-[12.5px] text-ink3">{subtitle}</div>
+      )}
+    </>
+  );
+
   return (
     <div className="flex w-full items-center gap-3 px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px] font-medium text-ink">{title}</div>
-        {subtitle && (
-          <div className="mt-px truncate text-[12.5px] text-ink3">{subtitle}</div>
-        )}
-      </div>
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="min-w-0 flex-1 text-left"
+        >
+          {content}
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1">{content}</div>
+      )}
       {action && <div className="shrink-0">{action}</div>}
+      {onClick && !action && (
+        <Icon name="chevron-right" size={18} className="shrink-0 text-ink3" />
+      )}
     </div>
   );
 }

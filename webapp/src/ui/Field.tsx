@@ -2,7 +2,7 @@ import type { ChangeEvent } from 'react';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
 
-function Label({ text, hint }: { text: string; hint?: string }) {
+export function FieldLabel({ text, hint }: { text: string; hint?: string }) {
   return (
     <div className="mx-1 mb-[6px] text-[13px] font-semibold text-ink2">
       {text}
@@ -32,7 +32,7 @@ export function Field({
 }) {
   return (
     <div>
-      <Label text={label} hint={hint} />
+      <FieldLabel text={label} hint={hint} />
       <div className="flex items-center gap-2 rounded-[14px] bg-surface px-[14px]">
         {icon && <Icon name={icon} size={15} className="shrink-0 text-ink3" />}
         <input
@@ -63,7 +63,7 @@ export function TextArea({
 }) {
   return (
     <div>
-      <Label text={label} />
+      <FieldLabel text={label} />
       <textarea
         value={value}
         onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>

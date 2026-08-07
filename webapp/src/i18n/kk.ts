@@ -75,8 +75,9 @@ export const kk: Dict = {
   loginError: 'Логин немесе құпиясөз қате',
   friendLookupTitle: 'Кімнің тілектер тізімін ашамыз?',
   friendLookupText:
-    'Досыңыздың Telegram @username енгізіңіз — оның тілектер тізімі ашылады.',
+    'Досыңыздың Telegram @username енгізіңіз немесе тізімнен таңдаңыз — оның тілектер тізімі ашылады.',
   friendLookupPlaceholder: '@username',
+  friendLookupPick: 'Достарыңыздан',
   friendLookupCta: 'Ашу',
   friendNotFound: 'Пайдаланушы табылмады',
 };

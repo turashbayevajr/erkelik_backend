@@ -75,8 +75,9 @@ export const en: Dict = {
   loginError: 'Wrong login or password',
   friendLookupTitle: 'Whose wishlist to open?',
   friendLookupText:
-    'Enter your friend’s Telegram @username to open their wishlist.',
+    'Enter your friend’s Telegram @username or pick from the list to open their wishlist.',
   friendLookupPlaceholder: '@username',
+  friendLookupPick: 'From your friends',
   friendLookupCta: 'Open',
   friendNotFound: 'User not found',
 };

@@ -31,6 +31,7 @@ const PATHS: Record<string, string[]> = {
   ],
   'chevron-left': ['M15 18l-6-6 6-6'],
   'chevron-right': ['M9 18l6-6-6-6'],
+  'chevron-down': ['M6 9l6 6 6-6'],
   x: ['M18 6 6 18', 'M6 6l12 12'],
   lock: ['M3 11h18v11H3z', 'M7 11V7a5 5 0 0 1 10 0v4'],
   'credit-card': ['M1 4h22v16H1z', 'M1 10h22'],

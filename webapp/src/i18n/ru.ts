@@ -73,8 +73,9 @@ export const ru = {
   loginError: 'Неверный логин или пароль',
   friendLookupTitle: 'Чей вишлист открыть?',
   friendLookupText:
-    'Введите @username друга в Telegram — откроется его список желаний.',
+    'Введите @username друга в Telegram или выберите из списка — откроется его список желаний.',
   friendLookupPlaceholder: '@username',
+  friendLookupPick: 'Из ваших друзей',
   friendLookupCta: 'Открыть',
   friendNotFound: 'Пользователь не найден',
 };

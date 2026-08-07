@@ -3,6 +3,7 @@ import type { Locale } from '../i18n';
 import { useNav } from '../state/nav';
 import { useAuth } from '../state/auth';
 import { useSocial } from '../state/social';
+import { useWishes } from '../state/wishes';
 import {
   ActionRow,
   Avatar,
@@ -22,6 +23,7 @@ export function ProfileScreen() {
   const { t, locale, setLocale } = useI18n();
   const nav = useNav();
   const { me, updateMe } = useAuth();
+  const { clearFriend } = useWishes();
   const {
     friends,
     subscribers,
@@ -41,6 +43,13 @@ export function ProfileScreen() {
   const pickLocale = (l: Locale) => {
     setLocale(l);
     void updateMe({ preferredLocale: l }).catch(() => {});
+  };
+
+  // Открыть чужой вишлист можно только по username — у кого его нет,
+  // строка остаётся некликабельной.
+  const openWishlist = (username: string) => {
+    clearFriend();
+    nav.push({ name: 'friend', username });
   };
 
   return (
@@ -113,7 +122,10 @@ export function ProfileScreen() {
               <RowWithAction
                 key={f.id}
                 title={f.name}
-                subtitle={`@${f.username}`}
+                subtitle={f.username ? `@${f.username}` : undefined}
+                onClick={
+                  f.username ? () => openWishlist(f.username) : undefined
+                }
               />
             ))
           )}
@@ -130,6 +142,9 @@ export function ProfileScreen() {
                 key={s.id}
                 title={s.name}
                 subtitle={s.username ? `@${s.username}` : undefined}
+                onClick={
+                  s.username ? () => openWishlist(s.username) : undefined
+                }
               />
             ))
           )}

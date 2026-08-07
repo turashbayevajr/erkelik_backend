@@ -6,7 +6,7 @@ import { EmptyState, Icon, Logo, MainButton, WishCard } from '../ui';
 export function MyWishlistScreen() {
   const { t } = useI18n();
   const nav = useNav();
-  const { myWishes } = useWishes();
+  const { myWishes, clearFriend } = useWishes();
   const empty = myWishes.length === 0;
 
   return (
@@ -14,7 +14,13 @@ export function MyWishlistScreen() {
       <div className="flex items-center justify-between px-1 pb-1">
         <Logo size={22} />
         <div className="flex items-center gap-4 text-ink3">
-          <button type="button" onClick={() => nav.push({ name: 'friend' })}>
+          <button
+            type="button"
+            onClick={() => {
+              clearFriend();
+              nav.push({ name: 'friend' });
+            }}
+          >
             <Icon name="gift-open" size={21} strokeWidth={1.8} />
           </button>
           <button type="button" onClick={() => nav.push({ name: 'profile' })}>

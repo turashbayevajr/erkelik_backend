@@ -103,6 +103,7 @@ type WishesState = {
   subscribedToFriend: boolean;
   friendRequestSent: boolean;
   openFriend: (username: string) => Promise<boolean>;
+  clearFriend: () => void;
   toggleSubscribe: () => Promise<void>;
   sendFriendRequest: () => Promise<void>;
   addWish: (w: NewWish) => Promise<void>;
@@ -159,6 +160,14 @@ export function WishesProvider({ children }: { children: ReactNode }) {
     },
     [loadFriend],
   );
+
+  // Сброс перед новым поиском: иначе экран поиска подменяется списком
+  // друга, открытого в прошлый раз.
+  const clearFriend = useCallback(() => {
+    setFriendUsername(null);
+    setFriendView(null);
+    setFriendNotFound(false);
+  }, []);
 
   const refreshFriend = useCallback(async () => {
     if (friendUsername) await loadFriend(friendUsername).catch(() => {});
@@ -271,6 +280,7 @@ export function WishesProvider({ children }: { children: ReactNode }) {
       subscribedToFriend: friendView?.subscribed ?? false,
       friendRequestSent: (friendView?.friendship ?? 'NONE') !== 'NONE',
       openFriend,
+      clearFriend,
       toggleSubscribe,
       sendFriendRequest,
       addWish,
@@ -290,6 +300,7 @@ export function WishesProvider({ children }: { children: ReactNode }) {
       friendLoading,
       friendNotFound,
       openFriend,
+      clearFriend,
       toggleSubscribe,
       sendFriendRequest,
       addWish,

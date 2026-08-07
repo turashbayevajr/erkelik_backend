@@ -9,6 +9,8 @@ export { WishCard, GiftCard } from './WishCard';
 export { TopBar } from './TopBar';
 export { MainButton } from './MainButton';
 export { Field, TextArea } from './Field';
+export { Combobox } from './Combobox';
+export type { ComboOption } from './Combobox';
 export { Shimmer, Spinner } from './Skeleton';
 export { EmptyState } from './EmptyState';
 export { SecrecyBanner } from './SecrecyBanner';
