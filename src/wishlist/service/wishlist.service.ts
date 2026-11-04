@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -13,6 +14,7 @@ import type { Locale as PrismaLocale, WishlistStatus } from '@prisma/client';
 import type { Locale as CommonLocale } from 'src/common/i18n';
 import { normalizeLocale } from 'src/common/i18n';
 import { t } from 'src/common/messages';
+import { isPriceWithinRange } from 'src/common/price';
 import { SocialService } from 'src/social/service/social.service';
 import { WISH_CREATED, WishCreatedEvent } from '../wish-created.event';
 import { WISH_UPDATED, WishUpdatedEvent } from '../wish-updated.event';
@@ -42,11 +44,48 @@ export class WishlistsService {
     return normalizeLocale(l);
   }
 
+  /**
+   * Цена вне numeric(12,2) роняет запрос ошибкой Postgres без кода Prisma —
+   * её не отличить от любой другой, поэтому проверяем до записи.
+   */
+  private assertPriceWithinRange(price: unknown, loc: CommonLocale): void {
+    if (!isPriceWithinRange(price)) {
+      throw new BadRequestException(t('PRICE_TOO_LARGE', loc, ''));
+    }
+  }
+
+  /**
+   * Ожидаемые HTTP-ошибки пропускаем как есть, остальное логируем перед
+   * тем, как спрятать за UNEXPECTED: иначе причина сбоя теряется.
+   */
+  private rethrowOrUnexpected(
+    err: unknown,
+    loc: CommonLocale,
+    entityLabel: string,
+    context: string,
+  ): never {
+    if ((err as { code?: string })?.code === 'P2002') {
+      throw new ConflictException(t('ALREADY_EXISTS', loc, entityLabel));
+    }
+    if (
+      err instanceof HttpException &&
+      !(err instanceof InternalServerErrorException)
+    ) {
+      throw err;
+    }
+    this.logger.error(
+      `${context} failed`,
+      (err as Error)?.stack ?? String(err),
+    );
+    throw new InternalServerErrorException(t('UNEXPECTED', loc, entityLabel));
+  }
+
   async create(
     dto: CreateWishlistDto,
   ): Promise<{ message: string; data: WishlistModel }> {
     const loc = this.pickLocale(dto.preferredLocale);
     const E = wishlistEntityLabel(loc);
+    this.assertPriceWithinRange(dto.price, loc);
     try {
       const dup = await this.repo.findUniqueByOwnerNameUrl(
         dto.ownerId,
@@ -78,11 +117,8 @@ export class WishlistsService {
         ),
       );
       return { message: t('CREATED_OK', loc, E), data: created };
-    } catch (err: any) {
-      if (err?.code === 'P2002')
-        throw new ConflictException(t('ALREADY_EXISTS', loc, E));
-      if (err instanceof ConflictException) throw err;
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+    } catch (err) {
+      this.rethrowOrUnexpected(err, loc, E, `create(ownerId=${dto.ownerId})`);
     }
   }
 
@@ -93,6 +129,7 @@ export class WishlistsService {
   ): Promise<{ message: string; data: WishlistModel }> {
     const loc = this.pickLocale(responseLocale ?? dto.preferredLocale);
     const E = wishlistEntityLabel(loc);
+    this.assertPriceWithinRange(dto.price, loc);
     try {
       const found = await this.repo.findById(id);
       if (!found) throw new NotFoundException(t('NOT_FOUND', loc, E));
@@ -146,16 +183,8 @@ export class WishlistsService {
         );
       }
       return { message: t('UPDATED_OK', loc, E), data: updated };
-    } catch (err: any) {
-      if (
-        err instanceof NotFoundException ||
-        err instanceof ConflictException ||
-        err instanceof ForbiddenException
-      )
-        throw err;
-      if (err?.code === 'P2002')
-        throw new ConflictException(t('ALREADY_EXISTS', loc, E));
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+    } catch (err) {
+      this.rethrowOrUnexpected(err, loc, E, `update(id=${id})`);
     }
   }
 
@@ -181,12 +210,11 @@ export class WishlistsService {
   }
 
   async findAll(): Promise<WishlistModel[]> {
+    const loc: CommonLocale = 'EN';
     try {
       return await this.repo.list();
-    } catch {
-      const loc: CommonLocale = 'EN';
-      const E = wishlistEntityLabel(loc);
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+    } catch (err) {
+      this.rethrowOrUnexpected(err, loc, wishlistEntityLabel(loc), 'findAll');
     }
   }
 
@@ -201,8 +229,7 @@ export class WishlistsService {
       if (!found) throw new NotFoundException(t('NOT_FOUND', loc, E));
       return found;
     } catch (err) {
-      if (err instanceof NotFoundException) throw err;
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+      this.rethrowOrUnexpected(err, loc, E, `findOne(id=${id})`);
     }
   }
 
@@ -225,9 +252,7 @@ export class WishlistsService {
       await this.repo.delete(id);
       return { message: t('DELETED_OK', loc, E) };
     } catch (err) {
-      if (err instanceof NotFoundException || err instanceof ForbiddenException)
-        throw err;
-      throw new InternalServerErrorException(t('UNEXPECTED', loc, E));
+      this.rethrowOrUnexpected(err, loc, E, `remove(id=${id})`);
     }
   }
 

@@ -15,6 +15,7 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
     ALREADY_EXISTS: (e) => `${e} with this identifier already exists.`,
     UNEXPECTED: () => `Unexpected error. Please try again later.`,
     VALIDATION_FAILED: () => `Validation failed. Check input fields.`,
+    PRICE_TOO_LARGE: () => `The price is too large — enter up to 9 999 999 999.`,
     FORBIDDEN: () => `You don't have permission to perform this action.`,
     STATUS_CONFLICT: (e) =>
       `Invalid ${e} status transition or it has already been processed.`,
@@ -37,6 +38,8 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
     ALREADY_EXISTS: (e) => `${e} с таким идентификатором уже существует.`,
     UNEXPECTED: () => `Непредвиденная ошибка. Повторите попытку позже.`,
     VALIDATION_FAILED: () => `Ошибка валидации. Проверьте входные данные.`,
+    PRICE_TOO_LARGE: () =>
+      `Слишком большая цена — введите не больше 9 999 999 999.`,
     SELF_RESERVED_OK: (e) => `Вы отметили своё ${e} как зарезервированное.`,
     FORBIDDEN: () => `Недостаточно прав для выполнения этого действия.`,
     STATUS_CONFLICT: (e) =>
@@ -60,6 +63,8 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
     UNEXPECTED: () => `Күтпеген қате. Кейінірек қайталап көріңіз.`,
     VALIDATION_FAILED: () =>
       `Тексеру қатесі. Енгізілген деректерді тексеріңіз.`,
+    PRICE_TOO_LARGE: () =>
+      `Баға тым үлкен — 9 999 999 999-дан аспайтын мән енгізіңіз.`,
     SELF_RESERVED_OK: (e) => `Өз ${e} бронь ретінде белгіледіңіз.`,
     FORBIDDEN: () => `Бұл әрекетті орындауға рұқсатыңыз жоқ.`,
     STATUS_CONFLICT: (e) =>

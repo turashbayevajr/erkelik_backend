@@ -15,7 +15,7 @@ export const UI = {
     sendDescriptionOrSkip:
       '📝 Send additional info (description) or press «Skip».',
     invalidPrice:
-      '❗ Invalid price. Please send a non-negative number like 12000 or 199.99.',
+      '❗ Invalid price. Send a non-negative number up to 9 999 999 999, like 12000 or 199.99.',
     askUsername: '🔎 Send Telegram username (with or without @).',
     listTitleMine: '📜 Your wishes:',
     listTitleOthers: (u: string) => `📜 Wishes of @${u}:`,
@@ -101,7 +101,7 @@ export const UI = {
     sendDescriptionOrSkip:
       '📝 Отправьте дополнительную информацию (описание) или нажмите «Пропустить».',
     invalidPrice:
-      '❗ Некорректная цена. Пришлите неотрицательное число, например 12000 или 199.99.',
+      '❗ Некорректная цена. Пришлите неотрицательное число не больше 9 999 999 999, например 12000 или 199.99.',
     askUsername: '🔎 Пришлите Telegram username (с @ или без).',
     listTitleMine: '📜 Ваши желания:',
     listTitleOthers: (u: string) => `📜 Желания пользователя @${u}:`,
@@ -189,7 +189,7 @@ export const UI = {
     sendDescriptionOrSkip:
       '📝 Қосымша ақпаратты (сипаттаманы) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
     invalidPrice:
-      '❗ Дұрыс емес баға. Теріс емес сан жіберіңіз, мысалы 12000 немесе 199.99.',
+      '❗ Дұрыс емес баға. 9 999 999 999-дан аспайтын теріс емес сан жіберіңіз, мысалы 12000 немесе 199.99.',
     askUsername: '🔎 Telegram пайдаланушы атын жіберіңіз.',
     listTitleMine: '📜 Сіздің еркеліктеріңіз:',
     listTitleOthers: (u: string) => `📜 @${u} еркеліктері:`,

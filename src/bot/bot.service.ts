@@ -4,6 +4,7 @@ import { Markup, Telegraf, session } from 'telegraf';
 import type { BotContext } from './bot.types';
 import { UI, UILang } from './bot.i18n';
 import { localeFromLanguageCode } from 'src/common/i18n';
+import { isPriceWithinRange } from 'src/common/price';
 
 import { WishlistModel } from 'src/wishlist/repository/wishlist.model';
 import { UserService } from 'src/users/service/users.service';
@@ -26,6 +27,9 @@ function normalizePriceInput(raw: string): string | null {
   if (!s) return null;
   const n = Number(s);
   if (!isFinite(n) || n < 0) return null;
+  // Больше MAX_PRICE колонка numeric(12,2) не принимает — отсекаем сразу,
+  // иначе диалог дошёл бы до сохранения и упал там.
+  if (!isPriceWithinRange(n)) return null;
   return n.toString();
 }
 function resolveUILang(ctx: BotContext): UILang {

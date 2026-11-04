@@ -10,6 +10,7 @@ export type MessageKey =
   | 'ALREADY_EXISTS'
   | 'UNEXPECTED'
   | 'VALIDATION_FAILED'
+  | 'PRICE_TOO_LARGE'
   | 'FORBIDDEN'
   | 'STATUS_CONFLICT'
   | 'RESERVED_OK'
