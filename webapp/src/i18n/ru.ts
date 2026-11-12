@@ -15,16 +15,12 @@ export const ru = {
   linkLabel: 'Ссылка на товар',
   linkPlaceholder: 'Вставьте ссылку на товар…',
   nameLabel: 'Название',
-  namePlaceholder: 'Подставим из превью…',
+  namePlaceholder: 'Например, «Наушники Sony WH-1000XM5»',
   priceLabel: 'Цена',
   optional: 'необязательно',
   pricePlaceholder: '0 ₸',
   descriptionLabel: 'Описание',
   descriptionPlaceholder: 'Пара слов, почему хочется именно это…',
-  previewSearching: 'ищем…',
-  previewFromLink: 'из ссылки',
-  previewNotFound:
-    'Превью не нашлось — просто заполните название и цену вручную. Это нормально.',
   saveWish: 'Сохранить желание',
   wishlistOf: (name: string) => `Вишлист ${name}`,
   secrecyNote: (name: string) =>

@@ -17,16 +17,12 @@ export const en: Dict = {
   linkLabel: 'Product link',
   linkPlaceholder: 'Paste a product link…',
   nameLabel: 'Name',
-  namePlaceholder: 'We’ll fill it from the preview…',
+  namePlaceholder: 'For example, “Sony WH-1000XM5 headphones”',
   priceLabel: 'Price',
   optional: 'optional',
   pricePlaceholder: '0 ₸',
   descriptionLabel: 'Description',
   descriptionPlaceholder: 'A few words on why you want this one…',
-  previewSearching: 'looking…',
-  previewFromLink: 'from link',
-  previewNotFound:
-    'No preview found — just fill in the name and price yourself. Totally fine.',
   saveWish: 'Save wish',
   wishlistOf: (name: string) => `${name}’s wishlist`,
   secrecyNote: (name: string) =>

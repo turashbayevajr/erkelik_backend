@@ -58,9 +58,7 @@ export class ApiAuthGuard implements CanActivate {
         {
           firstName: verified.user.first_name ?? null,
           lastName: verified.user.last_name ?? null,
-          initialPreferredLocale: localeFromLanguageCode(
-            verified.user.language_code,
-          ),
+          clientLocale: localeFromLanguageCode(verified.user.language_code),
         },
       );
       return data;

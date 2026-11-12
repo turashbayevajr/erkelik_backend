@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { uploadImage } from '../api';
 import { useI18n } from '../i18n';
 import { useNav } from '../state/nav';
@@ -10,27 +10,17 @@ import type { PickerPhoto } from '../ui';
 const MAX_PHOTOS = 8;
 
 type LocalPhoto = PickerPhoto & { key?: string };
+
 import { useSocial } from '../state/social';
 import {
-  Card,
   Chip,
   Field,
-  Icon,
   MainButton,
   PhotoPicker,
   Segmented,
-  Shimmer,
-  Spinner,
   TextArea,
-  Thumb,
   TopBar,
 } from '../ui';
-
-type PreviewState =
-  | { kind: 'idle' }
-  | { kind: 'loading' }
-  | { kind: 'found'; title: string; domain: string; imageUrl?: string }
-  | { kind: 'missing' };
 
 function parseDomain(raw: string): string | null {
   try {
@@ -39,69 +29,6 @@ function parseDomain(raw: string): string | null {
   } catch {
     return null;
   }
-}
-
-// Мок автопревью: бэкендовый OG-эндпоинт подключится сюда же.
-function fetchPreviewMock(domain: string): Promise<PreviewState> {
-  return new Promise((resolve) =>
-    setTimeout(
-      () =>
-        resolve(
-          domain.includes('nopreview')
-            ? { kind: 'missing' }
-            : { kind: 'found', title: `Keychron K8 Pro`, domain },
-        ),
-      1400,
-    ),
-  );
-}
-
-function PreviewCard({ state }: { state: PreviewState }) {
-  const { t } = useI18n();
-  if (state.kind === 'idle') return null;
-
-  if (state.kind === 'loading') {
-    return (
-      <Card className="flex items-center gap-[10px] rounded-[14px] !p-[10px]">
-        <Shimmer className="h-14 w-14 shrink-0 rounded-[10px]" />
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <Shimmer className="h-3 w-[82%]" />
-          <Shimmer className="h-3 w-[46%]" />
-        </div>
-        <div className="flex shrink-0 items-center gap-[6px] text-[12px] text-ink3">
-          <Spinner />
-          {t.previewSearching}
-        </div>
-      </Card>
-    );
-  }
-
-  if (state.kind === 'missing') {
-    return (
-      <div className="flex items-center gap-[10px] rounded-xl border border-dashed border-accentborder bg-accentwash p-3">
-        <Icon name="gift" size={22} strokeWidth={1.8} className="shrink-0 text-accent" />
-        <div className="min-w-0 text-[13px] leading-[1.4] text-accentsoftink">
-          {t.previewNotFound}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Card className="flex items-center gap-[10px] rounded-[14px] !p-[10px]">
-      <Thumb imageUrl={state.imageUrl} size={56} radius={10} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px] font-semibold text-ink">
-          {state.title}
-        </div>
-        <div className="mt-[2px] truncate text-[13px] text-ink3">{state.domain}</div>
-      </div>
-      <div className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-accent">
-        <Icon name="check" size={14} strokeWidth={2.6} />
-        {t.previewFromLink}
-      </div>
-    </Card>
-  );
 }
 
 // editId превращает экран в редактирование: поля предзаполняются, сохранение
@@ -131,7 +58,6 @@ export function AddWishScreen({ editId }: { editId?: string }) {
         status: 'done' as const,
       })) ?? [],
   );
-  const [preview, setPreview] = useState<PreviewState>({ kind: 'idle' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const photoSeq = useRef(0);
@@ -172,32 +98,12 @@ export function AddWishScreen({ editId }: { editId?: string }) {
   );
   const uploading = photos.some((p) => p.status === 'uploading');
   const hasPhotoOrLink = link.trim().length > 0 || photoKeys.length > 0;
-  const requestRef = useRef(0);
 
   const toggleAllowed = (id: number) =>
     setAllowed((list) =>
       list.includes(id) ? list.filter((x) => x !== id) : [...list, id],
     );
 
-  useEffect(() => {
-    const domain = parseDomain(link.trim());
-    if (!domain) {
-      setPreview({ kind: 'idle' });
-      return;
-    }
-    const request = ++requestRef.current;
-    setPreview({ kind: 'loading' });
-    const timer = setTimeout(() => {
-      void fetchPreviewMock(domain).then((result) => {
-        if (requestRef.current !== request) return;
-        setPreview(result);
-        if (result.kind === 'found') {
-          setName((v) => v || result.title);
-        }
-      });
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [link]);
 
   const canSave =
     name.trim().length > 0 &&
@@ -252,7 +158,6 @@ export function AddWishScreen({ editId }: { editId?: string }) {
           icon="link"
           inputMode="url"
         />
-        <PreviewCard state={preview} />
         {!hasPhotoOrLink && (
           <div className="px-1 text-[13px] leading-[1.4] text-ink3">
             {t.photoOrLinkHint}

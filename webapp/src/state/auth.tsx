@@ -16,6 +16,7 @@ import {
   setUnauthorizedHandler,
 } from '../api';
 import type { ApiLocale, ApiUser, ApiVisibility } from '../api';
+import { savedLocale, useI18n } from '../i18n';
 
 type AuthStatus = 'loading' | 'authed' | 'anon';
 
@@ -35,6 +36,25 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [me, setMe] = useState<ApiUser | null>(null);
+  const { applyLocale } = useI18n();
+
+  // Язык пользователя живёт на сервере (бот и уведомления берут его оттуда).
+  // Выбор, сделанный на этом устройстве, досылаем, если сервер его не знает;
+  // иначе показываем серверный язык.
+  const adoptUser = useCallback(
+    (user: ApiUser) => {
+      setMe(user);
+      const saved = savedLocale();
+      if (saved && saved !== user.preferredLocale) {
+        void patchMe({ preferredLocale: saved })
+          .then(setMe)
+          .catch(() => {});
+        return;
+      }
+      applyLocale(user.preferredLocale);
+    },
+    [applyLocale],
+  );
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -51,25 +71,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     fetchMe()
       .then((user) => {
-        setMe(user);
+        adoptUser(user);
         setStatus('authed');
       })
       .catch(() => {
         // 401 уже обработан хендлером; прочее — считаем не залогиненным
         setStatus((s) => (s === 'loading' ? 'anon' : s));
       });
-  }, []);
+  }, [adoptUser]);
 
   const login = useCallback(async (loginValue: string, password: string) => {
     try {
       const user = await apiLogin(loginValue, password);
-      setMe(user);
+      adoptUser(user);
       setStatus('authed');
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [adoptUser]);
 
   const logout = useCallback(() => {
     clearToken();

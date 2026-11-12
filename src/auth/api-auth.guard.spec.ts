@@ -45,7 +45,7 @@ describe('ApiAuthGuard (tma)', () => {
     expect(registerOrUpdateByTelegramId).toHaveBeenCalledWith(
       777n,
       undefined,
-      expect.objectContaining({ initialPreferredLocale: 'KK' }),
+      expect.objectContaining({ clientLocale: 'KK' }),
     );
     // именно initial-, а не preferredLocale: выбор в базе не перетирается
     const profile = registerOrUpdateByTelegramId.mock.calls[0][2] as Record<
@@ -64,7 +64,7 @@ describe('ApiAuthGuard (tma)', () => {
     expect(registerOrUpdateByTelegramId).toHaveBeenCalledWith(
       777n,
       undefined,
-      expect.objectContaining({ initialPreferredLocale: undefined }),
+      expect.objectContaining({ clientLocale: undefined }),
     );
   });
 

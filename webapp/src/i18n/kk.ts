@@ -17,16 +17,12 @@ export const kk: Dict = {
   linkLabel: 'Тауар сілтемесі',
   linkPlaceholder: 'Тауар сілтемесін қойыңыз…',
   nameLabel: 'Атауы',
-  namePlaceholder: 'Превьюден аламыз…',
+  namePlaceholder: 'Мысалы, «Sony WH-1000XM5 құлаққабы»',
   priceLabel: 'Бағасы',
   optional: 'міндетті емес',
   pricePlaceholder: '0 ₸',
   descriptionLabel: 'Сипаттама',
   descriptionPlaceholder: 'Неге дәл осыны қалайтыныңыз туралы бірер сөз…',
-  previewSearching: 'іздеп жатырмыз…',
-  previewFromLink: 'сілтемеден',
-  previewNotFound:
-    'Превью табылмады — атауы мен бағасын қолмен толтыра салыңыз. Бұл қалыпты жағдай.',
   saveWish: 'Тілекті сақтау',
   wishlistOf: (name: string) => `${name} тілектері`,
   secrecyNote: (name: string) =>

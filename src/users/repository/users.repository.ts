@@ -40,8 +40,8 @@ export interface IUserRepository {
     firstName?: string | null;
     lastName?: string | null;
     preferredLocale?: Locale;
-    /** Локаль только для create: существующий выбор не перезаписывается. */
-    initialPreferredLocale?: Locale;
+    /** Язык клиента: при create и пока язык не выбран явно (localeChosen). */
+    clientLocale?: Locale;
   }): Promise<UserModel>;
 
   updateByTelegramId(
@@ -145,6 +145,7 @@ export class UserRepository implements IUserRepository {
         firstName: data.firstName ?? undefined,
         lastName: data.lastName ?? undefined,
         preferredLocale: data.preferredLocale ?? undefined,
+        ...(data.preferredLocale ? { localeChosen: true } : {}),
       },
     });
     return map(updated);
@@ -161,7 +162,7 @@ export class UserRepository implements IUserRepository {
     firstName?: string | null;
     lastName?: string | null;
     preferredLocale?: Locale;
-    initialPreferredLocale?: Locale;
+    clientLocale?: Locale;
   }): Promise<UserModel> {
     const up = await this.prisma.user.upsert({
       where: { telegramId: data.telegramId },
@@ -170,8 +171,7 @@ export class UserRepository implements IUserRepository {
         username: data.username ?? null,
         firstName: data.firstName ?? null,
         lastName: data.lastName ?? null,
-        preferredLocale:
-          data.preferredLocale ?? data.initialPreferredLocale ?? 'EN',
+        preferredLocale: data.preferredLocale ?? data.clientLocale ?? 'EN',
       },
       update: {
         // Telegram profile may change; update only when provided
@@ -179,8 +179,22 @@ export class UserRepository implements IUserRepository {
         firstName: data.firstName ?? undefined,
         lastName: data.lastName ?? undefined,
         preferredLocale: data.preferredLocale ?? undefined,
+        ...(data.preferredLocale ? { localeChosen: true } : {}),
       },
     });
+    // Пока язык не выбран явно, он следует за языком клиента Telegram:
+    // иначе уведомления уходят на дефолтном EN, хотя человек видит русский.
+    if (
+      !up.localeChosen &&
+      data.clientLocale &&
+      up.preferredLocale !== data.clientLocale
+    ) {
+      const synced = await this.prisma.user.update({
+        where: { id: up.id },
+        data: { preferredLocale: data.clientLocale },
+      });
+      return map(synced);
+    }
     return map(up);
   }
 
@@ -203,6 +217,8 @@ export class UserRepository implements IUserRepository {
           firstName: data.firstName ?? undefined,
           lastName: data.lastName ?? undefined,
           preferredLocale: data.preferredLocale ?? undefined,
+          // явный выбор языка — больше не следуем за языком Telegram
+          ...(data.preferredLocale ? { localeChosen: true } : {}),
           defaultVisibility: data.defaultVisibility ?? undefined,
         },
       });

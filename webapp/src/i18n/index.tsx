@@ -25,9 +25,22 @@ function toLocale(code: string | undefined): Locale | undefined {
   return undefined;
 }
 
+/** Язык, явно выбранный в профиле на этом устройстве. */
+export function savedLocale(): Locale | undefined {
+  try {
+    const saved = localStorage.getItem('locale');
+    if (saved === 'RU' || saved === 'KK' || saved === 'EN') return saved;
+  } catch {
+    // storage недоступен — выбора нет
+  }
+  return undefined;
+}
+
+// До ответа сервера показываем язык устройства; после входа источник
+// истины — preferredLocale пользователя (по нему же бот шлёт уведомления).
 function detectLocale(): Locale {
-  const saved = localStorage.getItem('locale');
-  if (saved === 'RU' || saved === 'KK' || saved === 'EN') return saved;
+  const saved = savedLocale();
+  if (saved) return saved;
   // Внутри Telegram язык берём из initData: webview почти всегда
   // отдаёт navigator.language = en-US независимо от языка клиента.
   return (
@@ -35,7 +48,14 @@ function detectLocale(): Locale {
   );
 }
 
-type I18n = { t: Dict; locale: Locale; setLocale: (l: Locale) => void };
+type I18n = {
+  t: Dict;
+  locale: Locale;
+  /** Явный выбор пользователя: запоминается на устройстве. */
+  setLocale: (l: Locale) => void;
+  /** Язык с сервера: только показать, не запоминая как выбор. */
+  applyLocale: (l: Locale) => void;
+};
 
 const I18nContext = createContext<I18n | null>(null);
 
@@ -49,6 +69,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('locale', l);
         setLocaleState(l);
       },
+      applyLocale: setLocaleState,
     }),
     [locale],
   );

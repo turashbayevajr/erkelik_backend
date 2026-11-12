@@ -509,13 +509,13 @@ export class BotService {
     const username = ctx.from!.username ?? null;
     const firstName = (ctx.from as any).first_name ?? null;
     const lastName = (ctx.from as any).last_name ?? null;
-    // язык клиента — только как начальный при создании: сохранённый в базе
-    // выбор (например, сделанный в miniapp) не перетирается
-    const lang = resolveUILang(ctx);
+    // Язык клиента Telegram: начальный при создании и текущий, пока язык
+    // не выбран явно в профиле miniapp (тогда выбор не перетирается).
+    const clientLocale = localeFromLanguageCode(ctx.from?.language_code);
     const { data } = await this.users.registerOrUpdateByTelegramId(
       tgId,
       username,
-      { firstName, lastName, initialPreferredLocale: lang },
+      { firstName, lastName, clientLocale },
     );
     const locale = data.preferredLocale ?? 'EN';
     ctx.session.me = { id: data.id, telegramId: tgId, locale };

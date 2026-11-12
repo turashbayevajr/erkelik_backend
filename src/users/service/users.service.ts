@@ -170,8 +170,11 @@ export class UserService {
       firstName?: string | null;
       lastName?: string | null;
       preferredLocale?: CommonLocale;
-      /** Локаль только для первого создания — выбор в базе не перетирается. */
-      initialPreferredLocale?: CommonLocale;
+      /**
+       * Язык клиента Telegram: при создании и пока пользователь не выбрал
+       * язык явно (localeChosen) — сохранённый выбор не перетирается.
+       */
+      clientLocale?: CommonLocale;
     },
     responseLocale?: LocaleLike,
   ): Promise<{ message: string; data: UserModel }> {
@@ -185,7 +188,7 @@ export class UserService {
         firstName: profile?.firstName ?? null,
         lastName: profile?.lastName ?? null,
         preferredLocale: profile?.preferredLocale ?? undefined,
-        initialPreferredLocale: profile?.initialPreferredLocale ?? undefined,
+        clientLocale: profile?.clientLocale ?? undefined,
       });
 
       const isNew = data.createdAt.getTime() === data.updatedAt.getTime();
