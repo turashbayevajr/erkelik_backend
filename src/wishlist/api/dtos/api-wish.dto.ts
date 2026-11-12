@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -10,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { Prisma, WishVisibility } from '@prisma/client';
+import { MAX_WISH_IMAGES } from '../../wish-images';
 
 // DTO miniapp-API: без ownerId (личность — только из Authorization)
 // и без status/orderedById (статусы меняются только методами сервиса).
@@ -50,6 +52,15 @@ export class ApiCreateWishDto {
   @IsInt({ each: true })
   @Min(1, { each: true })
   allowedUserIds?: number[];
+
+  /**
+   * Ключи фото из POST /api/media в порядке показа (первое — обложка).
+   * При редактировании — новый набор целиком; не передан — фото не меняются.
+   */
+  @IsOptional()
+  @IsString({ each: true })
+  @ArrayMaxSize(MAX_WISH_IMAGES)
+  imageKeys?: string[];
 }
 
 export class ApiUpdateWishDto {
@@ -78,4 +89,13 @@ export class ApiUpdateWishDto {
   @IsInt({ each: true })
   @Min(1, { each: true })
   allowedUserIds?: number[];
+
+  /**
+   * Ключи фото из POST /api/media в порядке показа (первое — обложка).
+   * При редактировании — новый набор целиком; не передан — фото не меняются.
+   */
+  @IsOptional()
+  @IsString({ each: true })
+  @ArrayMaxSize(MAX_WISH_IMAGES)
+  imageKeys?: string[];
 }

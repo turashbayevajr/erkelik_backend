@@ -16,18 +16,24 @@ import { normalizeLocale } from 'src/common/i18n';
 import { t } from 'src/common/messages';
 import { isPriceWithinRange } from 'src/common/price';
 import { SocialService } from 'src/social/service/social.service';
+import { MediaService } from 'src/media/service/media.service';
+import { MAX_WISH_IMAGES } from '../wish-images';
 import { WISH_CREATED, WishCreatedEvent } from '../wish-created.event';
 import { WISH_UPDATED, WishUpdatedEvent } from '../wish-updated.event';
 import {
   IWishlistRepository,
   ListOptions,
 } from '../repository/wishlist.repository';
-import { WishlistModel } from '../repository/wishlist.model';
+import { WishImageModel, WishlistModel } from '../repository/wishlist.model';
 import { CreateWishlistDto } from '../api/dtos/create-wish.dto';
 import { wishlistEntityLabel } from '../api/dtos/wishlist.i18n';
 import { UpdateWishlistDto } from '../api/dtos/update-wish.dto';
 
 type LocaleLike = CommonLocale | PrismaLocale | undefined;
+
+function sameImageKeys(a: WishImageModel[], b: WishImageModel[]): boolean {
+  return a.length === b.length && a.every((im, i) => im.key === b[i].key);
+}
 
 @Injectable()
 export class WishlistsService {
@@ -38,6 +44,7 @@ export class WishlistsService {
     private readonly repo: IWishlistRepository,
     private readonly social: SocialService,
     private readonly events: EventEmitter2,
+    private readonly media: MediaService,
   ) {}
 
   private pickLocale(l?: LocaleLike): CommonLocale {
@@ -51,6 +58,43 @@ export class WishlistsService {
   private assertPriceWithinRange(price: unknown, loc: CommonLocale): void {
     if (!isPriceWithinRange(price)) {
       throw new BadRequestException(t('PRICE_TOO_LARGE', loc, ''));
+    }
+  }
+
+  /**
+   * Ключи загруженных фото → фото с размерами. Ключ обязан принадлежать
+   * владельцу желания и указывать на существующий файл. undefined — «не
+   * трогать фото» (при редактировании).
+   */
+  private async resolveImages(
+    keys: string[] | undefined,
+    ownerId: number,
+    loc: CommonLocale,
+  ): Promise<WishImageModel[] | undefined> {
+    if (keys === undefined) return undefined;
+    const unique = [...new Set(keys)];
+    if (unique.length > MAX_WISH_IMAGES) {
+      throw new BadRequestException(t('TOO_MANY_IMAGES', loc, ''));
+    }
+    const images: WishImageModel[] = [];
+    for (const key of unique) {
+      const image = this.media.isOwnedBy(key, ownerId)
+        ? await this.media.describe(key)
+        : null;
+      if (!image) throw new BadRequestException(t('IMAGE_INVALID', loc, ''));
+      images.push(image);
+    }
+    return images;
+  }
+
+  /** У желания должно быть фото или ссылка — хотя бы одно из двух. */
+  private assertPhotoOrLink(
+    url: string | null | undefined,
+    images: WishImageModel[] | undefined,
+    loc: CommonLocale,
+  ): void {
+    if (!url?.trim() && !images?.length) {
+      throw new BadRequestException(t('PHOTO_OR_LINK_REQUIRED', loc, ''));
     }
   }
 
@@ -87,6 +131,8 @@ export class WishlistsService {
     const E = wishlistEntityLabel(loc);
     this.assertPriceWithinRange(dto.price, loc);
     try {
+      const images = await this.resolveImages(dto.imageKeys, dto.ownerId, loc);
+      this.assertPhotoOrLink(dto.url, images, loc);
       const dup = await this.repo.findUniqueByOwnerNameUrl(
         dto.ownerId,
         dto.name,
@@ -106,6 +152,7 @@ export class WishlistsService {
         status: dto.status ?? 'OPEN',
         visibility: dto.visibility ?? 'PUBLIC',
         allowedUserIds: dto.allowedUserIds,
+        images,
       });
       this.events.emit(
         WISH_CREATED,
@@ -139,6 +186,25 @@ export class WishlistsService {
         throw new ForbiddenException(t('FORBIDDEN', loc, E));
       }
 
+      const images = await this.resolveImages(
+        dto.imageKeys,
+        found.ownerId,
+        loc,
+      );
+      // Правило «фото или ссылка» проверяем, только когда меняется одно из
+      // них: старые желания без того и другого остаются редактируемыми.
+      const urlChanged =
+        dto.url !== undefined && (dto.url ?? null) !== (found.url ?? null);
+      const imagesChanged =
+        images !== undefined && !sameImageKeys(images, found.images);
+      if (urlChanged || imagesChanged) {
+        this.assertPhotoOrLink(
+          dto.url === undefined ? found.url : dto.url,
+          images ?? found.images,
+          loc,
+        );
+      }
+
       if (dto.name !== undefined || dto.url !== undefined) {
         const nextName = dto.name ?? found.name;
         const nextUrl = dto.url ?? found.url ?? null;
@@ -162,12 +228,20 @@ export class WishlistsService {
         status: dto.status ?? undefined,
         visibility: dto.visibility ?? undefined,
         allowedUserIds: dto.allowedUserIds,
+        images: imagesChanged ? images : undefined,
       });
+
+      if (imagesChanged) {
+        const kept = new Set(images.map((im) => im.key));
+        await this.media.remove(
+          found.images.map((im) => im.key).filter((key) => !kept.has(key)),
+        );
+      }
 
       // Даритель узнаёт об изменении содержимого своей брони.
       // Тайна не нарушается: событие уходит бронирующему, не владельцу.
       if (
-        this.contentChanged(found, dto) &&
+        (this.contentChanged(found, dto) || imagesChanged) &&
         found.orderedById != null &&
         found.orderedById !== found.ownerId &&
         (found.status === 'RESERVED' || found.status === 'ORDERED')
@@ -250,6 +324,7 @@ export class WishlistsService {
         throw new ForbiddenException(t('FORBIDDEN', loc, E));
       }
       await this.repo.delete(id);
+      await this.media.remove(found.images.map((im) => im.key));
       return { message: t('DELETED_OK', loc, E) };
     } catch (err) {
       this.rethrowOrUnexpected(err, loc, E, `remove(id=${id})`);

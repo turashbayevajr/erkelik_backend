@@ -1,5 +1,6 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WishlistsService } from './wishlist.service';
+import { MediaService } from 'src/media/service/media.service';
 import { SocialService } from 'src/social/service/social.service';
 import { IWishlistRepository } from '../repository/wishlist.repository';
 import { WishlistModel } from '../repository/wishlist.model';
@@ -11,6 +12,7 @@ const wish = (over: Partial<WishlistModel>): WishlistModel => ({
   price: null,
   url: null,
   description: null,
+  images: [],
   ownerId: 1,
   orderedById: null,
   status: 'OPEN',
@@ -22,7 +24,10 @@ const wish = (over: Partial<WishlistModel>): WishlistModel => ({
 
 describe('WishlistsService update -> wish.updated', () => {
   let repo: jest.Mocked<
-    Pick<IWishlistRepository, 'findById' | 'update' | 'findUniqueByOwnerNameUrl'>
+    Pick<
+      IWishlistRepository,
+      'findById' | 'update' | 'findUniqueByOwnerNameUrl'
+    >
   >;
   let events: EventEmitter2;
   let service: WishlistsService;
@@ -48,6 +53,7 @@ describe('WishlistsService update -> wish.updated', () => {
       repo as unknown as IWishlistRepository,
       { areFriends: jest.fn() } as unknown as SocialService,
       events,
+      new MediaService(),
     );
   });
 

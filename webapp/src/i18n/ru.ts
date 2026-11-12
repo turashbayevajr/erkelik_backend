@@ -78,6 +78,14 @@ export const ru = {
   friendLookupPick: 'Из ваших друзей',
   friendLookupCta: 'Открыть',
   friendNotFound: 'Пользователь не найден',
+  photosLabel: 'Фото',
+  photosHint: 'до 8, первое — обложка',
+  addPhoto: 'Добавить',
+  cover: 'Обложка',
+  removePhoto: 'Убрать фото',
+  photoOrLinkHint: 'Добавьте фото или ссылку — нужно хотя бы что-то одно.',
+  photoOf: (n: number, total: number) => `Фото ${n} из ${total}`,
+  saveFailed: 'Не удалось сохранить. Попробуйте ещё раз.',
 };
 
 export type Dict = typeof ru;

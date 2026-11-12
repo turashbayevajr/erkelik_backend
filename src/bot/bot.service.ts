@@ -1,7 +1,19 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Markup, Telegraf, session } from 'telegraf';
 import type { BotContext } from './bot.types';
+import {
+  EDIT_FIELD_RE,
+  EDIT_MENU_RE,
+  EDIT_PHOTOS_RE,
+  PHOTOS_CLEAR_RE,
+} from './bot.callbacks';
+import type { InputFile, PhotoSize } from 'telegraf/types';
 import { UI, UILang } from './bot.i18n';
 import { localeFromLanguageCode } from 'src/common/i18n';
 import { isPriceWithinRange } from 'src/common/price';
@@ -10,9 +22,18 @@ import { WishlistModel } from 'src/wishlist/repository/wishlist.model';
 import { UserService } from 'src/users/service/users.service';
 import { WishlistsService } from 'src/wishlist/service/wishlist.service';
 import { SocialService } from 'src/social/service/social.service';
+import {
+  MAX_UPLOAD_BYTES,
+  MediaService,
+} from 'src/media/service/media.service';
+import { MAX_WISH_IMAGES } from 'src/wishlist/wish-images';
 import { WishlistStatus } from '@prisma/client';
 
 // ---------- utils ----------
+
+/** Лимит подписи к фото в Telegram. */
+const TG_CAPTION_LIMIT = 1024;
+const TG_FILE_ID_CACHE_LIMIT = 5000;
 
 const ESCAPE_CHARS = /[_*[\]()~`>#+\-=|{}.!\\]/g;
 function escapeMarkdownV2(text: string): string {
@@ -128,6 +149,7 @@ function editMenu(lang: UILang, id: string) {
     [Markup.button.callback(B.editPrice, `edit_price_${id}`)],
     [Markup.button.callback(B.editUrl, `edit_url_${id}`)],
     [Markup.button.callback(B.editDescription, `edit_description_${id}`)],
+    [Markup.button.callback(B.editPhotos, `edit_photos_${id}`)],
     [Markup.button.callback(B.save, `save_${id}`)],
     [Markup.button.callback(B.menu, 'menu')],
   ]);
@@ -248,6 +270,7 @@ export class BotService {
     private readonly users: UserService,
     private readonly wishes: WishlistsService,
     private readonly social: SocialService,
+    private readonly media: MediaService,
   ) {
     const token = this.config.get<string>('BOT_TOKEN');
     if (!token) throw new Error('BOT_TOKEN is not set');
@@ -288,6 +311,169 @@ export class BotService {
   }
 
   // --- helpers ---
+
+  /**
+   * file_id уже отправленных фото: повторно файл в Telegram не заливаем.
+   * Кэш в памяти (как и session) — после рестарта фото просто зальются снова.
+   */
+  private readonly tgFileIds = new Map<string, string>();
+
+  private async photoInput(key: string): Promise<InputFile | string> {
+    return (
+      this.tgFileIds.get(key) ?? {
+        source: await this.media.readAsJpeg(key),
+        filename: 'photo.jpg',
+      }
+    );
+  }
+
+  private rememberFileId(key: string, sizes: PhotoSize[] | undefined): void {
+    const largest = sizes?.[sizes.length - 1];
+    if (!largest) return;
+    if (this.tgFileIds.size >= TG_FILE_ID_CACHE_LIMIT) this.tgFileIds.clear();
+    this.tgFileIds.set(key, largest.file_id);
+  }
+
+  /**
+   * Показ желания: без фото — текстом, с одним фото — фото с подписью,
+   * с несколькими — альбомом (листается как карусель) и текстом с кнопками
+   * следом: к альбому Telegram кнопки прикрепить не даёт. Сбой отправки фото
+   * не мешает показать само желание.
+   */
+  private async replyWish(
+    ctx: BotContext,
+    item: WishlistModel,
+    text: string,
+    keyboard: ReturnType<typeof Markup.inlineKeyboard>,
+  ): Promise<void> {
+    const images = item.images;
+    try {
+      if (images.length === 1 && text.length <= TG_CAPTION_LIMIT) {
+        const msg = await ctx.replyWithPhoto(
+          await this.photoInput(images[0].key),
+          { caption: text, parse_mode: 'MarkdownV2', ...keyboard },
+        );
+        this.rememberFileId(images[0].key, msg.photo);
+        return;
+      }
+      if (images.length === 1) {
+        const msg = await ctx.replyWithPhoto(
+          await this.photoInput(images[0].key),
+        );
+        this.rememberFileId(images[0].key, msg.photo);
+      } else if (images.length > 1) {
+        const media = await Promise.all(
+          images.map(async (im) => ({
+            type: 'photo' as const,
+            media: await this.photoInput(im.key),
+          })),
+        );
+        const sent = await ctx.replyWithMediaGroup(media);
+        sent.forEach((m, i) => {
+          if ('photo' in m) this.rememberFileId(images[i].key, m.photo);
+        });
+      }
+    } catch (err) {
+      // file_id мог протухнуть — в следующий раз зальём файл заново
+      images.forEach((im) => this.tgFileIds.delete(im.key));
+      this.logger.warn(`replyWish photos failed: ${String(err)}`);
+    }
+    await ctx.reply(text, {
+      parse_mode: 'MarkdownV2',
+      ...keyboard,
+      link_preview_options: { is_disabled: true },
+    });
+  }
+
+  private async askDescription(ctx: BotContext): Promise<void> {
+    const T = UI[resolveUILang(ctx)];
+    ctx.session.step = 'waiting_for_description';
+    await ctx.reply(escapeMarkdownV2(T.sendDescriptionOrSkip), {
+      parse_mode: 'MarkdownV2',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback(T.buttons.skip, 'skip_description')],
+      ]),
+      link_preview_options: { is_disabled: true },
+    });
+  }
+
+  /**
+   * Фото на шаге «ссылка или фото»: скачиваем через Bot API и кладём в то же
+   * хранилище, что и загрузки из miniapp (file_id/токен наружу не уходят).
+   */
+  private async acceptWishPhoto(
+    ctx: BotContext,
+    fileId: string,
+    mediaGroupId?: string,
+  ): Promise<void> {
+    const T = UI[resolveUILang(ctx)];
+    // Куда кладём фото: черновик нового желания или правка существующего.
+    const draft =
+      ctx.session.step === 'waiting_for_url' ? ctx.session.item : undefined;
+    const editing =
+      !draft && ctx.session.editingField === 'photos'
+        ? ctx.session.editingItem
+        : undefined;
+    const target = draft ?? editing;
+    if (!target) {
+      await this.showMainMenu(ctx);
+      return;
+    }
+    if ((target.imageKeys?.length ?? 0) >= MAX_WISH_IMAGES) {
+      await ctx.reply(escapeMarkdownV2(T.tooManyPhotos), {
+        parse_mode: 'MarkdownV2',
+      });
+      return;
+    }
+
+    const me = await this.ensureMe(ctx);
+    let key: string;
+    try {
+      const link = await ctx.telegram.getFileLink(fileId);
+      const res = await fetch(link);
+      const data = Buffer.from(await res.arrayBuffer());
+      if (!res.ok || data.length > MAX_UPLOAD_BYTES)
+        throw new Error('bad file');
+      key = (await this.media.saveImage(data, me.id, me.locale)).key;
+    } catch (err) {
+      this.logger.warn(`acceptWishPhoto failed: ${String(err)}`);
+      await ctx.reply(escapeMarkdownV2(T.photoFailed), {
+        parse_mode: 'MarkdownV2',
+      });
+      return;
+    }
+
+    // Апдейты альбома обрабатываются параллельно над одним объектом сессии:
+    // лимит перепроверяем уже после скачивания.
+    target.imageKeys = target.imageKeys ?? [];
+    if (target.imageKeys.length >= MAX_WISH_IMAGES) {
+      await this.media.remove([key]);
+      return;
+    }
+    target.imageKeys.push(key);
+
+    if (mediaGroupId && ctx.session.lastMediaGroupId === mediaGroupId) return;
+    ctx.session.lastMediaGroupId = mediaGroupId;
+    const n = target.imageKeys.length;
+    if (editing) {
+      await ctx.reply(
+        escapeMarkdownV2(T.hints.photoAddedEdit(n, T.buttons.save)),
+        {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.save, `save_${editing.id}`)],
+          ]),
+        },
+      );
+      return;
+    }
+    await ctx.reply(escapeMarkdownV2(T.photoAdded(n, T.buttons.photosDone)), {
+      parse_mode: 'MarkdownV2',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback(T.buttons.photosDone, 'photos_done')],
+      ]),
+    });
+  }
 
   /**
    * Отправка сервисного сообщения пользователю (уведомления подписок,
@@ -374,6 +560,7 @@ export class BotService {
       ctx.session.editingField = undefined;
       ctx.session.editingItemId = undefined;
       ctx.session.itemToDeleteId = undefined;
+      ctx.session.lastMediaGroupId = undefined;
 
       await this.showMainMenu(ctx);
     });
@@ -456,43 +643,43 @@ export class BotService {
 
       ctx.session.item.price = null;
       ctx.session.step = 'waiting_for_url';
-      await ctx.reply(escapeMarkdownV2(T.sendUrlOrSkip), {
+      await ctx.reply(escapeMarkdownV2(T.sendUrlOrPhoto), {
         parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback(T.buttons.skip, 'skip_link')],
-        ]),
       });
     });
 
-    this.bot.action('skip_link', async (ctx) => {
+    // Шаг «ссылка или фото»: пропустить можно, только если фото уже есть.
+    // skip_link оставлен для кнопок из сообщений, отправленных до появления фото.
+    this.bot.action(['skip_link', 'photos_done'], async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
-      const me = await this.ensureMe(ctx);
-      const lang = resolveUILang(ctx);
-      const T = UI[lang];
+      const T = UI[resolveUILang(ctx)];
+      if (ctx.session.step !== 'waiting_for_url' || !ctx.session.item) return;
 
-      if (!ctx.session.item) return;
-
-      const created = await this.wishes.create({
-        name: ctx.session.item.name,
-        price: ctx.session.item.price
-          ? (ctx.session.item.price as any)
-          : undefined,
-        ownerId: me.id,
-        status: 'OPEN',
-        preferredLocale: me.locale,
-      });
-
-      await ctx.reply(escapeMarkdownV2(created.message), {
-        parse_mode: 'MarkdownV2',
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback(T.buttons.menu, 'menu')],
-        ]),
-        link_preview_options: { is_disabled: true },
-      });
-
-      ctx.session.step = undefined;
-      ctx.session.item = undefined;
+      if (!ctx.session.item.imageKeys?.length) {
+        await ctx.reply(escapeMarkdownV2(T.photoOrLinkRequired), {
+          parse_mode: 'MarkdownV2',
+        });
+        return;
+      }
+      await ctx.editMessageReplyMarkup(undefined).catch(() => undefined);
+      await this.askDescription(ctx);
     });
+
+    // Фото желания: обычное фото или картинка, отправленная файлом.
+    this.bot.on('photo', async (ctx) => {
+      const sizes = ctx.message.photo;
+      await this.acceptWishPhoto(
+        ctx,
+        sizes[sizes.length - 1].file_id,
+        ctx.message.media_group_id,
+      );
+    });
+    this.bot.on('document', async (ctx) => {
+      const doc = ctx.message.document;
+      if (!doc.mime_type?.startsWith('image/')) return;
+      await this.acceptWishPhoto(ctx, doc.file_id, ctx.message.media_group_id);
+    });
+
     // Somewhere in your callback_query handler:
     this.bot.action('skip_description', async (ctx) => {
       if (ctx.session.step !== 'waiting_for_description') return;
@@ -504,6 +691,7 @@ export class BotService {
         name: item.name,
         price: item.price ? (item.price as any) : undefined,
         ...(item.url ? { url: item.url } : {}),
+        ...(item.imageKeys?.length ? { imageKeys: item.imageKeys } : {}),
         ownerId: me.id,
         status: 'OPEN',
         preferredLocale: me.locale,
@@ -625,11 +813,7 @@ export class BotService {
 
         const keyboard = detailReservationButtons(lang, item, me.id);
 
-        await ctx.reply(details, {
-          parse_mode: 'MarkdownV2',
-          ...keyboard,
-          link_preview_options: { is_disabled: true },
-        });
+        await this.replyWish(ctx, item, details, keyboard);
 
         ctx.session.editingItem = {
           id: item.id,
@@ -660,11 +844,12 @@ export class BotService {
 
       try {
         const item = await this.wishes.findOne(id);
-        await ctx.reply(renderWishDetails(lang, item), {
-          parse_mode: 'MarkdownV2',
-          ...itemButtonsMineDynamic(lang, item),
-          link_preview_options: { is_disabled: true },
-        });
+        await this.replyWish(
+          ctx,
+          item,
+          renderWishDetails(lang, item),
+          itemButtonsMineDynamic(lang, item),
+        );
 
         ctx.session.editingItem = {
           id: item.id,
@@ -686,72 +871,126 @@ export class BotService {
       }
     });
 
-    // Edit menu — не перехватываем edit_name|price|url|description_
-    this.bot.action(
-      /^edit_(?!name_|price_|url_|description_)([\w-]+)$/,
-      async (ctx) => {
-        await ctx.answerCbQuery().catch(() => {});
-        const id = ctx.match?.[1];
-        if (!id) return;
-        const lang = resolveUILang(ctx);
+    // Edit menu — не перехватываем edit_name|price|url|description|photos_
+    this.bot.action(EDIT_MENU_RE, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+      const lang = resolveUILang(ctx);
 
-        await ctx.reply(escapeMarkdownV2('⚙️'), {
-          parse_mode: 'MarkdownV2',
-          ...editMenu(lang, id),
-        });
-      },
-    );
+      await ctx.reply(escapeMarkdownV2('⚙️'), {
+        parse_mode: 'MarkdownV2',
+        ...editMenu(lang, id),
+      });
+    });
 
     // Choose field to edit
-    this.bot.action(
-      /^edit_(name|price|url|description)_([\w-]+)$/,
-      async (ctx) => {
-        await ctx.answerCbQuery().catch(() => {});
-        const field = ctx.match?.[1] as
-          | 'name'
-          | 'price'
-          | 'url'
-          | 'description';
-        const id = ctx.match?.[2];
-        if (!id || !field) return;
+    this.bot.action(EDIT_FIELD_RE, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const field = ctx.match?.[1] as 'name' | 'price' | 'url' | 'description';
+      const id = ctx.match?.[2];
+      if (!id || !field) return;
 
-        const lang = resolveUILang(ctx);
-        const T = UI[lang];
+      const lang = resolveUILang(ctx);
+      const T = UI[lang];
 
-        try {
-          const fresh = await this.wishes.findOne(id);
-          ctx.session.editingItem = {
-            id: fresh.id,
-            name: fresh.name,
-            price: fresh.price,
-            url: fresh.url,
-            description: fresh.description,
-            ownerId: fresh.ownerId,
-          };
-          ctx.session.editingField = field;
-          ctx.session.editingItemId = id;
+      try {
+        const fresh = await this.wishes.findOne(id);
+        ctx.session.editingItem = {
+          id: fresh.id,
+          name: fresh.name,
+          price: fresh.price,
+          url: fresh.url,
+          description: fresh.description,
+          ownerId: fresh.ownerId,
+        };
+        ctx.session.editingField = field;
+        ctx.session.editingItemId = id;
 
-          const hint =
-            field === 'name'
-              ? T.hints.enterNewName
-              : field === 'price'
-                ? T.hints.enterNewPrice
-                : field === 'url'
-                  ? T.hints.enterNewUrl
-                  : T.hints.enterNewDescription;
+        const hint =
+          field === 'name'
+            ? T.hints.enterNewName
+            : field === 'price'
+              ? T.hints.enterNewPrice
+              : field === 'url'
+                ? T.hints.enterNewUrl
+                : T.hints.enterNewDescription;
 
-          await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
-        } catch {
-          const msg =
-            lang === 'RU'
-              ? 'Элемент не найден.'
-              : lang === 'KK'
-                ? 'Элемент табылмады.'
-                : 'Item not found.';
-          await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
-        }
-      },
-    );
+        await ctx.reply(escapeMarkdownV2(hint), { parse_mode: 'MarkdownV2' });
+      } catch {
+        const msg =
+          lang === 'RU'
+            ? 'Элемент не найден.'
+            : lang === 'KK'
+              ? 'Элемент табылмады.'
+              : 'Item not found.';
+        await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
+      }
+    });
+
+    // Фото желания: присланные фото добавляются к текущим, «удалить все» —
+    // чтобы заменить набор. Сохраняется общей кнопкой «Сохранить».
+    this.bot.action(EDIT_PHOTOS_RE, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      if (!id) return;
+      const T = UI[resolveUILang(ctx)];
+      try {
+        const fresh = await this.wishes.findOne(id);
+        ctx.session.editingItem = {
+          id: fresh.id,
+          name: fresh.name,
+          price: fresh.price,
+          url: fresh.url,
+          description: fresh.description,
+          ownerId: fresh.ownerId,
+          imageKeys: fresh.images.map((im) => im.key),
+        };
+        ctx.session.editingField = 'photos';
+        ctx.session.editingItemId = id;
+        await ctx.reply(
+          escapeMarkdownV2(T.hints.editPhotos(fresh.images.length)),
+          {
+            parse_mode: 'MarkdownV2',
+            ...Markup.inlineKeyboard([
+              ...(fresh.images.length
+                ? [
+                    [
+                      Markup.button.callback(
+                        T.buttons.clearPhotos,
+                        `photos_clear_${id}`,
+                      ),
+                    ],
+                  ]
+                : []),
+              [Markup.button.callback(T.buttons.save, `save_${id}`)],
+              [Markup.button.callback(T.buttons.menu, 'menu')],
+            ]),
+          },
+        );
+      } catch {
+        await ctx.reply(escapeMarkdownV2(T.itemNotFound), {
+          parse_mode: 'MarkdownV2',
+        });
+      }
+    });
+
+    this.bot.action(PHOTOS_CLEAR_RE, async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      const id = ctx.match?.[1];
+      const T = UI[resolveUILang(ctx)];
+      const editing = ctx.session.editingItem;
+      if (!id || !editing || editing.id !== id) return;
+      editing.imageKeys = [];
+      ctx.session.editingField = 'photos';
+      await ctx.editMessageReplyMarkup(undefined).catch(() => undefined);
+      await ctx.reply(escapeMarkdownV2(T.hints.photosCleared(T.buttons.save)), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(T.buttons.save, `save_${id}`)],
+        ]),
+      });
+    });
 
     // Save changes
     this.bot.action(/^save_([\w-]+)$/, async (ctx) => {
@@ -790,6 +1029,9 @@ export class BotService {
           ctx.session.editingItem.description === null
             ? null
             : ctx.session.editingItem.description,
+        ...(ctx.session.editingItem.imageKeys !== undefined
+          ? { imageKeys: ctx.session.editingItem.imageKeys }
+          : {}),
       };
 
       try {
@@ -801,13 +1043,17 @@ export class BotService {
             [Markup.button.callback(T.buttons.menu, 'menu')],
           ]),
         });
-      } catch {
+      } catch (err) {
+        // Понятная причина от домена (например, «нужно фото или ссылка»)
+        // важнее общего «не удалось».
         const msg =
-          lang === 'RU'
-            ? 'Сохранить не удалось.'
-            : lang === 'KK'
-              ? 'Сақтау мүмкін болмады.'
-              : 'Failed to save.';
+          err instanceof HttpException && err.getStatus() < 500
+            ? err.message
+            : lang === 'RU'
+              ? 'Сохранить не удалось.'
+              : lang === 'KK'
+                ? 'Сақтау мүмкін болмады.'
+                : 'Failed to save.';
         await ctx.reply(escapeMarkdownV2(msg), { parse_mode: 'MarkdownV2' });
       } finally {
         ctx.session.editingItem = undefined;
@@ -895,11 +1141,12 @@ export class BotService {
         if (!(await this.wishes.canView(item, me.id))) {
           throw new NotFoundException();
         }
-        await ctx.reply(renderWishDetails(lang, item), {
-          parse_mode: 'MarkdownV2',
-          ...itemButtonsOthersDynamic(lang, item, me.id),
-          link_preview_options: { is_disabled: true },
-        });
+        await this.replyWish(
+          ctx,
+          item,
+          renderWishDetails(lang, item),
+          itemButtonsOthersDynamic(lang, item, me.id),
+        );
       } catch {
         const msg =
           lang === 'RU'
@@ -1250,30 +1497,15 @@ export class BotService {
         }
         ctx.session.item!.price = price;
         ctx.session.step = 'waiting_for_url';
-        await ctx.reply(escapeMarkdownV2(T.sendUrlOrSkip), {
+        await ctx.reply(escapeMarkdownV2(T.sendUrlOrPhoto), {
           parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([
-            [Markup.button.callback(T.buttons.skip, 'skip_link')],
-          ]),
         });
         return;
       }
 
       if (ctx.session.step === 'waiting_for_url') {
         ctx.session.item!.url = text;
-        ctx.session.step = 'waiting_for_description';
-
-        const prompt =
-          (UI[lang] as any).sendDescriptionOrSkip ??
-          'Send a description (optional), or press Skip';
-
-        await ctx.reply(escapeMarkdownV2(prompt), {
-          parse_mode: 'MarkdownV2',
-          ...Markup.inlineKeyboard([
-            [Markup.button.callback(T.buttons.skip, 'skip_description')],
-          ]),
-          link_preview_options: { is_disabled: true },
-        });
+        await this.askDescription(ctx);
         return;
       }
 
@@ -1289,6 +1521,7 @@ export class BotService {
           price: item.price ? (item.price as any) : undefined,
           ...(item.url ? { url: item.url } : {}),
           ...(item.description ? { description: item.description } : {}),
+          ...(item.imageKeys?.length ? { imageKeys: item.imageKeys } : {}),
           ownerId: me.id,
           status: 'OPEN',
           preferredLocale: me.locale,
@@ -1309,6 +1542,14 @@ export class BotService {
       // 3) Editing field handler
       if (ctx.session.editingItem && ctx.session.editingField) {
         const field = ctx.session.editingField;
+
+        if (field === 'photos') {
+          const n = ctx.session.editingItem.imageKeys?.length ?? 0;
+          await ctx.reply(escapeMarkdownV2(T.hints.editPhotos(n)), {
+            parse_mode: 'MarkdownV2',
+          });
+          return;
+        }
 
         if (field === 'name') {
           ctx.session.editingItem.name = text;

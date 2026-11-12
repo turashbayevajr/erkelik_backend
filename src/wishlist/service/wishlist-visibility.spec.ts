@@ -1,5 +1,6 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WishlistsService } from './wishlist.service';
+import { MediaService } from 'src/media/service/media.service';
 import { SocialService } from 'src/social/service/social.service';
 import { IWishlistRepository } from '../repository/wishlist.repository';
 import { WishlistModel } from '../repository/wishlist.model';
@@ -11,6 +12,7 @@ const wish = (over: Partial<WishlistModel>): WishlistModel => ({
   price: null,
   url: null,
   description: null,
+  images: [],
   ownerId: 1,
   orderedById: null,
   status: 'OPEN',
@@ -49,6 +51,7 @@ describe('WishlistsService visibility', () => {
       repo as unknown as IWishlistRepository,
       social as unknown as SocialService,
       events,
+      new MediaService(),
     );
   });
 
@@ -118,6 +121,7 @@ describe('WishlistsService visibility', () => {
 
       await service.create({
         name: 'Wish',
+        url: 'kaspi.kz/x',
         ownerId: 1,
         visibility: 'CUSTOM',
         allowedUserIds: [2, 3],

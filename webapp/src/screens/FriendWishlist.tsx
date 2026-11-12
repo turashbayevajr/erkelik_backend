@@ -7,12 +7,15 @@ import { useSocial } from '../state/social';
 import {
   Button,
   Combobox,
-  GiftCard,
   Icon,
   MainButton,
+  Masonry,
+  PinCard,
   SecrecyBanner,
   Spinner,
+  StatusBadge,
   TopBar,
+  pinRatio,
 } from '../ui';
 import type { ComboOption } from '../ui';
 
@@ -24,15 +27,15 @@ function GiftAction({ wish }: { wish: Wish }) {
 
   if (wish.status === 'RESERVED' && wish.reservedByMe) {
     return (
-      <div className="flex h-10 items-center justify-between rounded-[11px] bg-accent px-[14px] text-onaccent">
-        <span className="flex items-center gap-[7px] text-[13.5px] font-semibold">
+      <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-2 rounded-[11px] bg-accent px-3 py-[6px] text-onaccent">
+        <span className="flex min-w-0 items-center gap-[6px] text-[13.5px] font-semibold">
           <Icon name="heart" size={16} filled />
           {t.youGift}
         </span>
         <button
           type="button"
           onClick={() => void unreserve(wish.id)}
-          className="text-[12px] font-medium opacity-85"
+          className="text-[13px] font-medium opacity-90"
         >
           {t.cancel}
         </button>
@@ -55,21 +58,14 @@ function GiftAction({ wish }: { wish: Wish }) {
     );
   }
 
-  if (wish.status === 'ORDERED') {
-    return (
-      <Button variant="soft" disabled>
-        <Icon name="credit-card" size={15} />
-        {t.orderedByGiver}
-      </Button>
-    );
-  }
+  // Остальные статусы — бейджем в подписи карточки (см. giverBadge).
+  return null;
+}
 
-  return (
-    <Button variant="muted" disabled>
-      <Icon name="lock" size={15} />
-      {t.reservedByOther}
-    </Button>
-  );
+function giverBadge(wish: Wish) {
+  if (wish.status === 'OPEN') return undefined;
+  if (wish.status === 'RESERVED' && wish.reservedByMe) return undefined;
+  return <StatusBadge status={wish.status} />;
 }
 
 // Без выбранного друга — поиск по @username с выбором из своих друзей
@@ -175,16 +171,24 @@ export function FriendWishlistScreen({ username }: { username?: string }) {
             {friendRequestSent ? t.friendRequestSent : t.addFriend}
           </Button>
         </div>
-        {friendWishes.map((wish) => (
-          <GiftCard
-            key={wish.id}
-            wish={wish}
-            action={<GiftAction wish={wish} />}
-            onClick={() =>
-              nav.push({ name: 'detail', wishId: wish.id, context: 'giver' })
-            }
-          />
-        ))}
+        <Masonry
+          items={friendWishes}
+          getKey={(wish) => wish.id}
+          getRatio={pinRatio}
+          captionHeight={110}
+          renderItem={(wish) => (
+            <PinCard
+              wish={wish}
+              badge={giverBadge(wish)}
+              footer={
+                giverBadge(wish) ? undefined : <GiftAction wish={wish} />
+              }
+              onClick={() =>
+                nav.push({ name: 'detail', wishId: wish.id, context: 'giver' })
+              }
+            />
+          )}
+        />
       </div>
     </div>
   );

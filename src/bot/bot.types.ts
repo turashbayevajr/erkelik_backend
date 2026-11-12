@@ -13,6 +13,8 @@ export interface DraftItem {
   price: string | null;
   url: string | null;
   description: string | null;
+  /** Ключи загруженных фото (MediaService), по порядку получения. */
+  imageKeys?: string[];
 }
 
 export interface EditingItem {
@@ -22,6 +24,8 @@ export interface EditingItem {
   url: string | null;
   description: string | null;
   ownerId: number;
+  /** Новый набор фото; undefined — фото не меняли. */
+  imageKeys?: string[];
 }
 
 export interface BotSessionData {
@@ -31,7 +35,11 @@ export interface BotSessionData {
   // editing
   editingItem?: EditingItem;
   editingItemId?: string;
-  editingField?: 'name' | 'price' | 'url' | 'description';
+  editingField?: 'name' | 'price' | 'url' | 'description' | 'photos';
+
+  // альбом: на каждую его фотографию приходит отдельный апдейт —
+  // отвечаем только на первую
+  lastMediaGroupId?: string;
 
   // deletion
   itemToDeleteId?: string;

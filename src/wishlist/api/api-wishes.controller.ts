@@ -20,6 +20,11 @@ import { WishlistsService } from '../service/wishlist.service';
 import type { WishlistModel } from '../repository/wishlist.model';
 import { wishlistEntityLabel } from './dtos/wishlist.i18n';
 import { ApiCreateWishDto, ApiUpdateWishDto } from './dtos/api-wish.dto';
+import { mediaUrl } from 'src/media/service/media.service';
+
+function toApiImages(w: WishlistModel) {
+  return w.images.map((im) => ({ ...im, url: mediaUrl(im.key) }));
+}
 
 // Тайна дарителя: владелец не видит ни статуса брони, ни бронирующего —
 // в owner-представлении статус маскируется до OPEN/FULFILLED.
@@ -30,6 +35,7 @@ function toOwnerWish(w: WishlistModel) {
     price: w.price,
     url: w.url,
     description: w.description,
+    images: toApiImages(w),
     visibility: w.visibility,
     status: w.status === 'FULFILLED' ? 'FULFILLED' : 'OPEN',
     createdAt: w.createdAt,
@@ -45,6 +51,7 @@ function toGiverWish(w: WishlistModel, viewerId: number) {
     price: w.price,
     url: w.url,
     description: w.description,
+    images: toApiImages(w),
     status: w.status,
     reservedByMe: w.orderedById === viewerId,
     createdAt: w.createdAt,
@@ -102,6 +109,7 @@ export class ApiWishesController {
       description: dto.description,
       visibility: dto.visibility ?? user.defaultVisibility,
       allowedUserIds: dto.allowedUserIds,
+      imageKeys: dto.imageKeys,
       ownerId: user.id,
       preferredLocale: user.preferredLocale,
     });

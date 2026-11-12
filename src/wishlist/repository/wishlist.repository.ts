@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, WishlistStatus, WishVisibility } from '@prisma/client';
-import { WishlistModel } from './wishlist.model';
+import { WishImageModel, WishlistModel } from './wishlist.model';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 export interface ListOptions {
@@ -47,6 +47,8 @@ export interface IWishlistRepository {
     opts?: ListOptions,
   ): Promise<WishlistModel[]>;
   hasAccess(wishId: string, userId: number): Promise<boolean>;
+  /** Какие из переданных ключей фото прикреплены к желаниям. */
+  findAttachedImageKeys(keys: string[]): Promise<string[]>;
   listAllowedUserIds(wishId: string): Promise<number[]>;
 
   create(data: {
@@ -59,6 +61,7 @@ export interface IWishlistRepository {
     status?: WishlistStatus;
     visibility?: WishVisibility;
     allowedUserIds?: number[];
+    images?: WishImageModel[];
   }): Promise<WishlistModel>;
 
   update(
@@ -72,6 +75,8 @@ export interface IWishlistRepository {
       status?: WishlistStatus;
       visibility?: WishVisibility;
       allowedUserIds?: number[];
+      /** Новый набор фото целиком (порядок = позиции); undefined — не трогать. */
+      images?: WishImageModel[];
     },
   ): Promise<WishlistModel>;
 
@@ -82,18 +87,42 @@ export interface IWishlistRepository {
   markOrdered(id: string, userId: number): Promise<WishlistModel>;
   markFulfilled(id: string): Promise<WishlistModel>;
 }
-function map(row: Prisma.WishlistUncheckedCreateInput & any): WishlistModel {
+// Единый набор полей желания: фото подтягиваются в каждой выборке,
+// иначе ответ после брони/правки внезапно терял бы картинки.
+const WISH_SELECT = {
+  id: true,
+  name: true,
+  url: true,
+  price: true,
+  description: true,
+  ownerId: true,
+  orderedById: true,
+  status: true,
+  visibility: true,
+  createdAt: true,
+  updatedAt: true,
+  owner: { select: { username: true } },
+  images: {
+    select: { key: true, width: true, height: true },
+    orderBy: { position: 'asc' },
+  },
+} satisfies Prisma.WishlistSelect;
+
+type WishRow = Prisma.WishlistGetPayload<{ select: typeof WISH_SELECT }>;
+
+function map(row: WishRow): WishlistModel {
   return {
     id: row.id,
     name: row.name,
     price: row.price ? String(row.price) : null,
     url: row.url ?? null,
     description: row.description ?? null,
+    images: row.images,
     ownerId: row.ownerId,
-    ownerName: row.owner?.username ?? null,
+    ownerName: row.owner.username ?? null,
     orderedById: row.orderedById ?? null,
     status: row.status,
-    visibility: row.visibility ?? 'PUBLIC',
+    visibility: row.visibility,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -141,22 +170,7 @@ export class WishlistRepository implements IWishlistRepository {
   async findById(id: string): Promise<WishlistModel | null> {
     const row = await this.prisma.wishlist.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        url: true,
-        price: true,
-        description: true,
-        ownerId: true,
-        orderedById: true,
-        status: true,
-        visibility: true,
-        createdAt: true,
-        updatedAt: true,
-        owner: {
-          select: { username: true },
-        },
-      },
+      select: WISH_SELECT,
     });
     return row ? map(row) : null;
   }
@@ -174,6 +188,7 @@ export class WishlistRepository implements IWishlistRepository {
         url: url ?? null,
         description: description ?? null,
       },
+      select: WISH_SELECT,
     });
     return row ? map(row) : null;
   }
@@ -181,6 +196,7 @@ export class WishlistRepository implements IWishlistRepository {
   async list(): Promise<WishlistModel[]> {
     const rows = await this.prisma.wishlist.findMany({
       orderBy: { createdAt: 'desc' },
+      select: WISH_SELECT,
     });
     return rows.map(map);
   }
@@ -194,6 +210,7 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
+      select: WISH_SELECT,
     });
     return rows.map(map);
   }
@@ -211,20 +228,7 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
-      select: {
-        id: true,
-        name: true,
-        ownerId: true,
-        url: true,
-        description: true,
-        price: true,
-        status: true,
-        visibility: true,
-        createdAt: true,
-        owner: {
-          select: { username: true },
-        },
-      },
+      select: WISH_SELECT,
     });
     return rows.map(map);
   }
@@ -241,20 +245,7 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        url: true,
-        price: true,
-        ownerId: true,
-        status: true,
-        visibility: true,
-        createdAt: true,
-        owner: {
-          select: { username: true },
-        },
-      },
+      select: WISH_SELECT,
     });
     return rows.map(map);
   }
@@ -269,20 +260,7 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
-      select: {
-        id: true,
-        name: true,
-        ownerId: true,
-        description: true,
-        url: true,
-        price: true,
-        status: true,
-        visibility: true,
-        createdAt: true,
-        owner: {
-          select: { username: true },
-        },
-      },
+      select: WISH_SELECT,
     });
     return rows.map(map);
   }
@@ -308,8 +286,22 @@ export class WishlistRepository implements IWishlistRepository {
       orderBy: toOrderBy(opts?.orderBy, opts?.sort),
       take: opts?.take,
       skip: opts?.skip,
+      select: WISH_SELECT,
     });
     return rows.map(map);
+  }
+
+  async findAttachedImageKeys(keys: string[]): Promise<string[]> {
+    const attached: string[] = [];
+    // пачками: огромный IN (...) Postgres не любит
+    for (let i = 0; i < keys.length; i += 1000) {
+      const rows = await this.prisma.wishImage.findMany({
+        where: { key: { in: keys.slice(i, i + 1000) } },
+        select: { key: true },
+      });
+      attached.push(...rows.map((r) => r.key));
+    }
+    return attached;
   }
 
   async hasAccess(wishId: string, userId: number): Promise<boolean> {
@@ -338,8 +330,10 @@ export class WishlistRepository implements IWishlistRepository {
     status?: WishlistStatus;
     visibility?: WishVisibility;
     allowedUserIds?: number[];
+    images?: WishImageModel[];
   }): Promise<WishlistModel> {
     const row = await this.prisma.wishlist.create({
+      select: WISH_SELECT,
       data: {
         name: data.name,
         price: data.price ?? undefined,
@@ -353,6 +347,16 @@ export class WishlistRepository implements IWishlistRepository {
           ? {
               accesses: {
                 create: data.allowedUserIds.map((userId) => ({ userId })),
+              },
+            }
+          : {}),
+        ...(data.images?.length
+          ? {
+              images: {
+                create: data.images.map((im, position) => ({
+                  ...im,
+                  position,
+                })),
               },
             }
           : {}),
@@ -372,33 +376,52 @@ export class WishlistRepository implements IWishlistRepository {
       status?: WishlistStatus;
       visibility?: WishVisibility;
       allowedUserIds?: number[];
+      images?: WishImageModel[];
     },
   ): Promise<WishlistModel> {
-    const row = await this.prisma.wishlist.update({
-      where: { id },
-      data: {
-        name: data.name ?? undefined,
-        price: data.price === undefined ? undefined : data.price,
-        url: data.url === undefined ? undefined : (data.url ?? null),
-        description:
-          data.description === undefined
-            ? undefined
-            : (data.description ?? null),
-        orderedById:
-          data.orderedById === undefined
-            ? undefined
-            : (data.orderedById ?? null),
-        status: data.status ?? undefined,
-        visibility: data.visibility ?? undefined,
-        ...(data.allowedUserIds !== undefined
-          ? {
-              accesses: {
-                deleteMany: {},
-                create: data.allowedUserIds.map((userId) => ({ userId })),
-              },
-            }
-          : {}),
-      },
+    // Фото пересоздаются целиком: удаление старых строк и вставка новых в
+    // одной транзакции, чтобы уникальный key не конфликтовал сам с собой.
+    const row = await this.prisma.$transaction(async (tx) => {
+      if (data.images !== undefined) {
+        await tx.wishImage.deleteMany({ where: { wishId: id } });
+      }
+      return tx.wishlist.update({
+        where: { id },
+        select: WISH_SELECT,
+        data: {
+          name: data.name ?? undefined,
+          price: data.price === undefined ? undefined : data.price,
+          url: data.url === undefined ? undefined : (data.url ?? null),
+          description:
+            data.description === undefined
+              ? undefined
+              : (data.description ?? null),
+          orderedById:
+            data.orderedById === undefined
+              ? undefined
+              : (data.orderedById ?? null),
+          status: data.status ?? undefined,
+          visibility: data.visibility ?? undefined,
+          ...(data.allowedUserIds !== undefined
+            ? {
+                accesses: {
+                  deleteMany: {},
+                  create: data.allowedUserIds.map((userId) => ({ userId })),
+                },
+              }
+            : {}),
+          ...(data.images?.length
+            ? {
+                images: {
+                  create: data.images.map((im, position) => ({
+                    ...im,
+                    position,
+                  })),
+                },
+              }
+            : {}),
+        },
+      });
     });
     return map(row);
   }
@@ -414,7 +437,10 @@ export class WishlistRepository implements IWishlistRepository {
     });
     if (res.count !== 1) {
     }
-    const row = await this.prisma.wishlist.findUnique({ where: { id } });
+    const row = await this.prisma.wishlist.findUnique({
+      where: { id },
+      select: WISH_SELECT,
+    });
     if (!row) throw new Error('reserve: row not found after updateMany');
     return map(row);
   }
@@ -426,7 +452,10 @@ export class WishlistRepository implements IWishlistRepository {
     });
     if (res.count !== 1) {
     }
-    const row = await this.prisma.wishlist.findUnique({ where: { id } });
+    const row = await this.prisma.wishlist.findUnique({
+      where: { id },
+      select: WISH_SELECT,
+    });
     if (!row) throw new Error('unreserve: row not found after updateMany');
     return map(row);
   }
@@ -446,7 +475,10 @@ export class WishlistRepository implements IWishlistRepository {
       }
     }
 
-    const row = await this.prisma.wishlist.findUnique({ where: { id } });
+    const row = await this.prisma.wishlist.findUnique({
+      where: { id },
+      select: WISH_SELECT,
+    });
     if (!row) throw new Error('markOrdered: row not found after updateMany');
     return map(row);
   }
@@ -458,7 +490,10 @@ export class WishlistRepository implements IWishlistRepository {
     });
     if (res.count !== 1) {
     }
-    const row = await this.prisma.wishlist.findUnique({ where: { id } });
+    const row = await this.prisma.wishlist.findUnique({
+      where: { id },
+      select: WISH_SELECT,
+    });
     if (!row) throw new Error('markFulfilled: row not found after updateMany');
     return map(row);
   }

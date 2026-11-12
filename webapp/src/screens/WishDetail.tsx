@@ -6,8 +6,8 @@ import {
   Icon,
   MainButton,
   StatusBadge,
+  PhotoCarousel,
   StatusStepper,
-  Thumb,
   TopBar,
 } from '../ui';
 
@@ -63,7 +63,7 @@ export function WishDetailScreen({
         }
       />
       <div className="flex flex-1 flex-col gap-4 px-4 pt-4 pb-[84px]">
-        <Thumb imageUrl={wish.imageUrl} size="hero" />
+        <PhotoCarousel photos={wish.images} label={t.photoOf} />
         <div>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 text-[21px] leading-[1.2] font-bold tracking-tight text-ink">

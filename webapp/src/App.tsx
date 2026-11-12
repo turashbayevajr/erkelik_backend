@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { I18nProvider } from './i18n';
 import { AuthProvider, useAuth } from './state/auth';
 import { NavProvider, useNav } from './state/nav';
@@ -13,7 +14,28 @@ import { ProfileScreen } from './screens/Profile';
 import { LoginScreen } from './screens/Login';
 import { Spinner } from './ui';
 
+// Ширина «рамки» приложения: экраны с masonry-сеткой на широком экране
+// раздвигаются до 3–5 колонок, остальные остаются телефонными.
+function Frame({ wide, children }: { wide?: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={`mx-auto min-h-dvh ${wide ? 'max-w-[1200px]' : 'max-w-[480px]'}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 function Router() {
+  const { screen } = useNav();
+  return (
+    <Frame wide={screen.name === 'my' || screen.name === 'friend'}>
+      <Screen />
+    </Frame>
+  );
+}
+
+function Screen() {
   const { screen } = useNav();
   switch (screen.name) {
     case 'my':
@@ -44,7 +66,12 @@ function Gate() {
       </div>
     );
   }
-  if (status === 'anon') return <LoginScreen />;
+  if (status === 'anon')
+    return (
+      <Frame>
+        <LoginScreen />
+      </Frame>
+    );
 
   const startParam = getStartParam();
   return (
@@ -66,7 +93,7 @@ export function App() {
   return (
     <I18nProvider>
       <AuthProvider>
-        <div className="mx-auto min-h-dvh max-w-[480px] bg-app">
+        <div className="min-h-dvh bg-app">
           <Gate />
         </div>
       </AuthProvider>

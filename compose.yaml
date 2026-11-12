@@ -33,6 +33,10 @@ services:
     env_file: .env
     environment:
       PORT: 4000
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      # фото желаний — переживают пересборку контейнера; включить в бэкап
+      - uploads:/app/uploads
     depends_on:
       wishlistdb:
         condition: service_healthy
@@ -52,3 +56,4 @@ services:
 
 volumes:
   db-data:
+  uploads:

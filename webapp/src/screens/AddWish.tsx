@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { uploadImage } from '../api';
 import { useI18n } from '../i18n';
 import { useNav } from '../state/nav';
 import { useWishes } from '../state/wishes';
 import type { WishVisibility } from '../state/wishes';
+import type { PickerPhoto } from '../ui';
+
+/** Совпадает с лимитом бэкенда (MAX_WISH_IMAGES). */
+const MAX_PHOTOS = 8;
+
+type LocalPhoto = PickerPhoto & { key?: string };
 import { useSocial } from '../state/social';
 import {
   Card,
@@ -10,6 +17,7 @@ import {
   Field,
   Icon,
   MainButton,
+  PhotoPicker,
   Segmented,
   Shimmer,
   Spinner,
@@ -114,8 +122,56 @@ export function AddWishScreen({ editId }: { editId?: string }) {
     editing?.visibility ?? defaultVisibility,
   );
   const [allowed, setAllowed] = useState<number[]>([]);
+  const [photos, setPhotos] = useState<LocalPhoto[]>(
+    () =>
+      editing?.images.map((im) => ({
+        id: im.key,
+        key: im.key,
+        url: im.url,
+        status: 'done' as const,
+      })) ?? [],
+  );
   const [preview, setPreview] = useState<PreviewState>({ kind: 'idle' });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const photoSeq = useRef(0);
+
+  // Фото грузятся сразу после выбора: к сохранению желания ключи уже есть.
+  const addPhotos = (files: File[]) => {
+    const room = MAX_PHOTOS - photos.length;
+    const added = files.slice(0, Math.max(0, room)).map((file) => ({
+      file,
+      photo: {
+        id: `local-${++photoSeq.current}`,
+        url: URL.createObjectURL(file),
+        status: 'uploading' as const,
+      },
+    }));
+    setPhotos((list) => [...list, ...added.map((a) => a.photo)]);
+    for (const { file, photo } of added) {
+      void uploadImage(file)
+        .then((image) =>
+          setPhotos((list) =>
+            list.map((p) =>
+              p.id === photo.id ? { ...p, key: image.key, status: 'done' } : p,
+            ),
+          ),
+        )
+        .catch(() =>
+          setPhotos((list) =>
+            list.map((p) => (p.id === photo.id ? { ...p, status: 'error' } : p)),
+          ),
+        );
+    }
+  };
+  const removePhoto = (id: string) =>
+    setPhotos((list) => list.filter((p) => p.id !== id));
+
+  const photoKeys = photos.flatMap((p) =>
+    p.status === 'done' && p.key ? [p.key] : [],
+  );
+  const uploading = photos.some((p) => p.status === 'uploading');
+  const hasPhotoOrLink = link.trim().length > 0 || photoKeys.length > 0;
   const requestRef = useRef(0);
 
   const toggleAllowed = (id: number) =>
@@ -145,18 +201,21 @@ export function AddWishScreen({ editId }: { editId?: string }) {
 
   const canSave =
     name.trim().length > 0 &&
+    hasPhotoOrLink &&
+    !uploading &&
     (visibility !== 'CUSTOM' || allowed.length > 0 || Boolean(editId));
 
   const save = () => {
     const domain = parseDomain(link.trim()) ?? undefined;
     setSaving(true);
+    setSaveError(false);
     const payload = {
       name: name.trim(),
       price: price.trim() || undefined,
       url: link.trim() || undefined,
       domain,
       description: description.trim() || undefined,
-      imageUrl: preview.kind === 'found' ? preview.imageUrl : undefined,
+      imageKeys: photoKeys,
       visibility,
       // при редактировании пустой выбор = оставить текущий список доступа
       allowedUserIds:
@@ -164,13 +223,27 @@ export function AddWishScreen({ editId }: { editId?: string }) {
     };
     void (editId ? updateWish(editId, payload) : addWish(payload))
       .then(() => nav.back())
-      .catch(() => setSaving(false));
+      .catch(() => {
+        setSaving(false);
+        setSaveError(true);
+      });
   };
 
   return (
     <div className="flex min-h-dvh flex-col">
       <TopBar title={editId ? t.editWish : t.newWish} onBack={nav.back} />
       <div className="flex flex-1 flex-col gap-4 px-4 pt-[18px] pb-[84px]">
+        <PhotoPicker
+          label={t.photosLabel}
+          hint={t.photosHint}
+          coverLabel={t.cover}
+          addLabel={t.addPhoto}
+          removeLabel={t.removePhoto}
+          photos={photos}
+          max={MAX_PHOTOS}
+          onAdd={addPhotos}
+          onRemove={removePhoto}
+        />
         <Field
           label={t.linkLabel}
           value={link}
@@ -180,6 +253,11 @@ export function AddWishScreen({ editId }: { editId?: string }) {
           inputMode="url"
         />
         <PreviewCard state={preview} />
+        {!hasPhotoOrLink && (
+          <div className="px-1 text-[13px] leading-[1.4] text-ink3">
+            {t.photoOrLinkHint}
+          </div>
+        )}
         <Field
           label={t.nameLabel}
           value={name}
@@ -231,6 +309,9 @@ export function AddWishScreen({ editId }: { editId?: string }) {
             </div>
           )}
         </div>
+        {saveError && (
+          <div className="px-1 text-[13px] text-accent">{t.saveFailed}</div>
+        )}
       </div>
       <MainButton label={t.saveWish} onClick={save} disabled={!canSave || saving} />
     </div>

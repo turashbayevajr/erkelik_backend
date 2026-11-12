@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -11,6 +12,7 @@ import {
 } from 'class-validator';
 import { Locale, WishlistStatus, WishVisibility } from '@prisma/client';
 import { Prisma } from '@prisma/client';
+import { MAX_WISH_IMAGES } from '../../wish-images';
 
 export class CreateWishlistDto {
   @IsString()
@@ -63,6 +65,12 @@ export class CreateWishlistDto {
   @IsInt({ each: true })
   @Min(1, { each: true })
   allowedUserIds?: number[];
+
+  /** Ключи фото из POST /api/media; порядок = порядок показа, первое — обложка. */
+  @IsOptional()
+  @IsString({ each: true })
+  @ArrayMaxSize(MAX_WISH_IMAGES)
+  imageKeys?: string[];
 
   /** Optional response/user locale hint */
   @IsOptional()

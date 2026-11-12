@@ -35,7 +35,9 @@ export function hasAuth(): boolean {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {};
-  if (init?.body) headers['Content-Type'] = 'application/json';
+  // FormData (загрузка фото) сама выставляет multipart с boundary.
+  if (init?.body && !(init.body instanceof FormData))
+    headers['Content-Type'] = 'application/json';
 
   const initData = getInitDataRaw();
   if (initData) headers.Authorization = `tma ${initData}`;
@@ -82,12 +84,21 @@ export interface ApiUser {
   defaultVisibility: ApiVisibility;
 }
 
+export interface ApiImage {
+  key: string;
+  /** Путь от корня API, например /api/media/<key>. */
+  url: string;
+  width: number;
+  height: number;
+}
+
 export interface ApiWish {
   id: string;
   name: string;
   price: string | null;
   url: string | null;
   description: string | null;
+  images: ApiImage[];
   status: ApiStatus;
   visibility?: ApiVisibility;
   reservedByMe?: boolean;
@@ -140,6 +151,7 @@ export const createWish = (wish: {
   description?: string;
   visibility?: ApiVisibility;
   allowedUserIds?: number[];
+  imageKeys?: string[];
 }) =>
   request<ApiWish>('/api/wishes', {
     method: 'POST',
@@ -155,12 +167,23 @@ export const updateWish = (
     description?: string | null;
     visibility?: ApiVisibility;
     allowedUserIds?: number[];
+    /** Новый набор фото целиком; не передан — фото не меняются. */
+    imageKeys?: string[];
   },
 ) =>
   request<ApiWish>(`/api/wishes/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
   });
+
+/** Абсолютный адрес картинки с учётом VITE_API_URL. */
+export const mediaSrc = (path: string) => `${BASE}${path}`;
+
+export function uploadImage(file: File): Promise<ApiImage> {
+  const body = new FormData();
+  body.append('file', file);
+  return request<ApiImage>('/api/media', { method: 'POST', body });
+}
 
 export const deleteWish = (id: string) =>
   request<void>(`/api/wishes/${id}`, { method: 'DELETE' });

@@ -80,4 +80,12 @@ export const kk: Dict = {
   friendLookupPick: 'Достарыңыздан',
   friendLookupCta: 'Ашу',
   friendNotFound: 'Пайдаланушы табылмады',
+  photosLabel: 'Фото',
+  photosHint: '8-ге дейін, біріншісі — мұқаба',
+  addPhoto: 'Қосу',
+  cover: 'Мұқаба',
+  removePhoto: 'Фотоны алып тастау',
+  photoOrLinkHint: 'Фото немесе сілтеме қосыңыз — кемінде біреуі қажет.',
+  photoOf: (n: number, total: number) => `${total} фотоның ${n}-сі`,
+  saveFailed: 'Сақтау мүмкін болмады. Қайталап көріңіз.',
 };

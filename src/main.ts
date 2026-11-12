@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
+import { MEDIA_PREFIX, uploadsDir } from './media/service/media.service';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe, Logger } from '@nestjs/common';
 
@@ -35,7 +35,14 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
+  // Фото желаний. Имена файлов случайные и не переиспользуются, поэтому
+  // кэш вечный; <img> не умеет слать Authorization, так что раздача без guard'а.
+  app.useStaticAssets(uploadsDir(), {
+    prefix: MEDIA_PREFIX,
+    index: false,
+    immutable: true,
+    maxAge: '365d',
+  });
   // В проде WEBAPP_ORIGIN — домен(ы) miniapp через запятую; без него dev-режим
   // остаётся открытым.
   const corsOrigin = process.env.WEBAPP_ORIGIN

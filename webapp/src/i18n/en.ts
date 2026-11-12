@@ -80,4 +80,12 @@ export const en: Dict = {
   friendLookupPick: 'From your friends',
   friendLookupCta: 'Open',
   friendNotFound: 'User not found',
+  photosLabel: 'Photos',
+  photosHint: 'up to 8, the first is the cover',
+  addPhoto: 'Add',
+  cover: 'Cover',
+  removePhoto: 'Remove photo',
+  photoOrLinkHint: 'Add a photo or a link — at least one of them is required.',
+  photoOf: (n: number, total: number) => `Photo ${n} of ${total}`,
+  saveFailed: 'Could not save. Please try again.',
 };

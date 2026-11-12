@@ -103,10 +103,26 @@ model Wishlist {
   status        WishlistStatus @default(OPEN)
   visibility    WishVisibility @default(PUBLIC)
   accesses      WishAccess[]
+  images        WishImage[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   @@index([ownerId])
   @@index([orderedById])
   @@unique([ownerId, name, url])
+}
+
+// Фото желания. key — имя файла в хранилище (см. src/media); размеры после
+// обработки нужны masonry-сетке, чтобы резервировать место до загрузки.
+// position = 0 — обложка.
+model WishImage {
+  id       String   @id @default(uuid())
+  wishId   String
+  wish     Wishlist @relation(fields: [wishId], references: [id], onDelete: Cascade)
+  key      String   @unique
+  width    Int
+  height   Int
+  position Int
+
+  @@index([wishId, position])
 }

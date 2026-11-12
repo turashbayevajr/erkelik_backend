@@ -26,6 +26,9 @@
   --confetti-3: #ebb4ab;
   --success: #4c9a62;
   --success-soft: #e6f2ea;
+  /* подложка значков поверх фото */
+  --scrim: rgba(0, 0, 0, 0.45);
+  --on-scrim: #ffffff;
 }
 
 [data-theme='dark'] {
@@ -49,6 +52,8 @@
   --chip-ink: #a7b4c2;
   --success: #63b57c;
   --success-soft: #22362a;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --on-scrim: #ffffff;
 }
 
 @theme inline {
@@ -75,6 +80,8 @@
   --color-confetti3: var(--confetti-3);
   --color-success: var(--success);
   --color-successsoft: var(--success-soft);
+  --color-scrim: var(--scrim);
+  --color-onscrim: var(--on-scrim);
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }

@@ -11,6 +11,7 @@ import {
   createWish,
   fetchFriendView,
   fetchMyWishes,
+  mediaSrc,
   fulfillWish,
   orderWish,
   reserveWish,
@@ -28,6 +29,13 @@ import type { ApiFriendView, ApiWish } from '../api';
 export type WishStatus = 'OPEN' | 'RESERVED' | 'ORDERED' | 'FULFILLED';
 export type WishVisibility = 'PUBLIC' | 'FRIENDS' | 'CUSTOM';
 
+export interface WishPhoto {
+  key: string;
+  url: string;
+  width: number;
+  height: number;
+}
+
 export interface Wish {
   id: string;
   name: string;
@@ -35,6 +43,9 @@ export interface Wish {
   url?: string;
   domain?: string;
   description?: string;
+  /** Фото по порядку, первое — обложка. */
+  images: WishPhoto[];
+  /** Обложка (для мелких превью). */
   imageUrl?: string;
   status: WishStatus;
   visibility?: WishVisibility;
@@ -48,7 +59,8 @@ export interface NewWish {
   url?: string;
   domain?: string;
   description?: string;
-  imageUrl?: string;
+  /** Ключи загруженных фото в порядке показа. */
+  imageKeys: string[];
   visibility?: WishVisibility;
   allowedUserIds?: number[];
 }
@@ -79,7 +91,13 @@ function normalizePriceInput(raw?: string): string | undefined {
 }
 
 function toWish(w: ApiWish): Wish {
+  const images = (w.images ?? []).map((im) => ({
+    ...im,
+    url: mediaSrc(im.url),
+  }));
   return {
+    images,
+    imageUrl: images[0]?.url,
     id: w.id,
     name: w.name,
     price: formatPrice(w.price),
@@ -201,6 +219,7 @@ export function WishesProvider({ children }: { children: ReactNode }) {
         description: w.description,
         visibility: w.visibility,
         allowedUserIds: w.allowedUserIds,
+        imageKeys: w.imageKeys,
       });
       await reloadMy();
     },
@@ -216,6 +235,7 @@ export function WishesProvider({ children }: { children: ReactNode }) {
         description: w.description ?? null,
         visibility: w.visibility,
         allowedUserIds: w.allowedUserIds,
+        imageKeys: w.imageKeys,
       });
       await reloadMy();
     },

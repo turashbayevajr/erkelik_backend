@@ -1,7 +1,16 @@
 import { useI18n } from '../i18n';
 import { useNav } from '../state/nav';
 import { useWishes } from '../state/wishes';
-import { EmptyState, Icon, Logo, MainButton, WishCard } from '../ui';
+import {
+  EmptyState,
+  Icon,
+  Logo,
+  Masonry,
+  MainButton,
+  PinCard,
+  StatusBadge,
+  pinRatio,
+} from '../ui';
 
 export function MyWishlistScreen() {
   const { t } = useI18n();
@@ -41,15 +50,25 @@ export function MyWishlistScreen() {
               {myWishes.length}
             </div>
           </div>
-          {myWishes.map((wish) => (
-            <WishCard
-              key={wish.id}
-              wish={wish}
-              onClick={() =>
-                nav.push({ name: 'detail', wishId: wish.id, context: 'owner' })
-              }
-            />
-          ))}
+          <Masonry
+            items={myWishes}
+            getKey={(wish) => wish.id}
+            getRatio={pinRatio}
+            renderItem={(wish) => (
+              // Тайна дарителя: владелец видит только «Подарено».
+              <PinCard
+                wish={wish}
+                badge={
+                  wish.status === 'FULFILLED' ? (
+                    <StatusBadge status="FULFILLED" />
+                  ) : undefined
+                }
+                onClick={() =>
+                  nav.push({ name: 'detail', wishId: wish.id, context: 'owner' })
+                }
+              />
+            )}
+          />
         </div>
       )}
 
