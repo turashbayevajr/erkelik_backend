@@ -7,7 +7,7 @@ import type { WishVisibility } from '../state/wishes';
 import type { PickerPhoto } from '../ui';
 
 /** Совпадает с лимитом бэкенда (MAX_WISH_IMAGES). */
-const MAX_PHOTOS = 8;
+const MAX_PHOTOS = 3;
 
 type LocalPhoto = PickerPhoto & { key?: string };
 

@@ -19,7 +19,7 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
       `Add a photo or a link — a wish needs at least one of them.`,
     IMAGE_INVALID: () =>
       `Could not read the photo. Send a JPEG, PNG or WebP image up to 10 MB.`,
-    TOO_MANY_IMAGES: () => `Too many photos — up to 8 per wish.`,
+    TOO_MANY_IMAGES: () => `Too many photos — up to 3 per wish.`,
     PRICE_TOO_LARGE: () =>
       `The price is too large — enter up to 9 999 999 999.`,
     FORBIDDEN: () => `You don't have permission to perform this action.`,
@@ -48,7 +48,7 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
       `Добавьте фото или ссылку — у желания должно быть хотя бы одно из двух.`,
     IMAGE_INVALID: () =>
       `Не удалось прочитать фото. Пришлите JPEG, PNG или WebP до 10 МБ.`,
-    TOO_MANY_IMAGES: () => `Слишком много фото — не больше 8 на желание.`,
+    TOO_MANY_IMAGES: () => `Слишком много фото — не больше 3 на желание.`,
     PRICE_TOO_LARGE: () =>
       `Слишком большая цена — введите не больше 9 999 999 999.`,
     SELF_RESERVED_OK: (e) => `Вы отметили своё ${e} как зарезервированное.`,
@@ -78,7 +78,7 @@ const dict: Record<CommonLocale, Record<MessageKey, TemplateFn>> = {
       `Фото немесе сілтеме қосыңыз — тілекте екеуінің кемінде біреуі болуы керек.`,
     IMAGE_INVALID: () =>
       `Фотоны оқу мүмкін болмады. 10 МБ-қа дейінгі JPEG, PNG немесе WebP жіберіңіз.`,
-    TOO_MANY_IMAGES: () => `Фото тым көп — бір тілекке 8-ден аспауы керек.`,
+    TOO_MANY_IMAGES: () => `Фото тым көп — бір тілекке 3-тен аспауы керек.`,
     PRICE_TOO_LARGE: () =>
       `Баға тым үлкен — 9 999 999 999-дан аспайтын мән енгізіңіз.`,
     SELF_RESERVED_OK: (e) => `Өз ${e} бронь ретінде белгіледіңіз.`,

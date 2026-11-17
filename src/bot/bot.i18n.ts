@@ -19,7 +19,7 @@ export const UI = {
       '❗ A wish needs a photo or a link — send at least one of them.',
     photoFailed:
       '❗ Could not read the photo. Try another one (JPEG, PNG or WebP up to 10 MB).',
-    tooManyPhotos: '❗ Up to 8 photos per wish.',
+    tooManyPhotos: '❗ Up to 3 photos per wish.',
     sendDescriptionOrSkip:
       '📝 Send additional info (description) or press «Skip».',
     invalidPrice:
@@ -90,7 +90,7 @@ export const UI = {
     },
     hints: {
       editPhotos: (n: number) =>
-        `📷 Photos now: ${n}. Send new photos — they will be added (up to 8). To replace them, remove all first.`,
+        `📷 Photos now: ${n}. Send new photos — they will be added (up to 3). To replace them, remove all first.`,
       photosCleared: (save: string) =>
         `🗑 Photos removed. Send new ones or press “${save}”.`,
       photoAddedEdit: (n: number, save: string) =>
@@ -123,7 +123,7 @@ export const UI = {
       '❗ У желания должно быть фото или ссылка — пришлите хотя бы одно.',
     photoFailed:
       '❗ Не удалось прочитать фото. Попробуйте другое (JPEG, PNG или WebP до 10 МБ).',
-    tooManyPhotos: '❗ Не больше 8 фото на желание.',
+    tooManyPhotos: '❗ Не больше 3 фото на желание.',
     sendDescriptionOrSkip:
       '📝 Отправьте дополнительную информацию (описание) или нажмите «Пропустить».',
     invalidPrice:
@@ -195,7 +195,7 @@ export const UI = {
     },
     hints: {
       editPhotos: (n: number) =>
-        `📷 Сейчас фото: ${n}. Пришлите новые — они добавятся (до 8). Чтобы заменить, сначала удалите все.`,
+        `📷 Сейчас фото: ${n}. Пришлите новые — они добавятся (до 3). Чтобы заменить, сначала удалите все.`,
       photosCleared: (save: string) =>
         `🗑 Фото убраны. Пришлите новые или нажмите «${save}».`,
       photoAddedEdit: (n: number, save: string) =>
@@ -228,7 +228,7 @@ export const UI = {
       '❗ Тілекте фото немесе сілтеме болуы керек — кемінде біреуін жіберіңіз.',
     photoFailed:
       '❗ Фотоны оқу мүмкін болмады. Басқасын жіберіп көріңіз (10 МБ-қа дейінгі JPEG, PNG немесе WebP).',
-    tooManyPhotos: '❗ Бір тілекке 8 фотодан аспауы керек.',
+    tooManyPhotos: '❗ Бір тілекке 3 фотодан аспауы керек.',
     sendDescriptionOrSkip:
       '📝 Қосымша ақпаратты (сипаттаманы) жіберіңіз немесе «Өткізу» батырмасын басыңыз.',
     invalidPrice:
@@ -299,7 +299,7 @@ export const UI = {
     },
     hints: {
       editPhotos: (n: number) =>
-        `📷 Қазір фото: ${n}. Жаңаларын жіберіңіз — олар қосылады (8-ге дейін). Ауыстыру үшін алдымен барлығын өшіріңіз.`,
+        `📷 Қазір фото: ${n}. Жаңаларын жіберіңіз — олар қосылады (3-ке дейін). Ауыстыру үшін алдымен барлығын өшіріңіз.`,
       photosCleared: (save: string) =>
         `🗑 Фото өшірілді. Жаңаларын жіберіңіз немесе «${save}» батырмасын басыңыз.`,
       photoAddedEdit: (n: number, save: string) =>

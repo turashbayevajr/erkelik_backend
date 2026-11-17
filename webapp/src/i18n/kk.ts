@@ -77,7 +77,7 @@ export const kk: Dict = {
   friendLookupCta: 'Ашу',
   friendNotFound: 'Пайдаланушы табылмады',
   photosLabel: 'Фото',
-  photosHint: '8-ге дейін, біріншісі — мұқаба',
+  photosHint: '3-ке дейін, біріншісі — мұқаба',
   addPhoto: 'Қосу',
   cover: 'Мұқаба',
   removePhoto: 'Фотоны алып тастау',

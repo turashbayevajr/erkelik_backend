@@ -116,9 +116,9 @@ describe('WishlistsService photos', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('rejects more than 8 photos', async () => {
+    it('rejects more than 3 photos', async () => {
       const keys = Array.from(
-        { length: 9 },
+        { length: 4 },
         (_, i) => `1-${String(i).repeat(8)}-1111-4111-8111-111111111111.webp`,
       );
       await expect(
@@ -170,6 +170,35 @@ describe('WishlistsService photos', () => {
         expect.objectContaining({ images: [img(KEY_B)] }),
       );
       expect(removeSpy).toHaveBeenCalledWith([KEY_A]);
+    });
+
+    describe('wishes saved under the old 8-photo limit', () => {
+      const legacy = ['a', 'b', 'c', 'd', 'e'].map(
+        (c) => `1-${c.repeat(8)}-1111-4111-8111-111111111111.webp`,
+      );
+      beforeEach(() =>
+        repo.findById.mockResolvedValue(wish({ images: legacy.map(img) })),
+      );
+
+      it('stay editable with the same photos', async () => {
+        await service.update('w1', { name: 'Новое', imageKeys: legacy });
+        expect(repo.update).toHaveBeenCalled();
+      });
+
+      it('can drop photos even if still above the limit', async () => {
+        await service.update('w1', { imageKeys: legacy.slice(0, 4) });
+        expect(repo.update).toHaveBeenCalledWith(
+          'w1',
+          expect.objectContaining({ images: legacy.slice(0, 4).map(img) }),
+        );
+      });
+
+      it('cannot get a new photo while above the limit', async () => {
+        await expect(
+          service.update('w1', { imageKeys: [...legacy.slice(0, 4), KEY_A] }),
+        ).rejects.toBeInstanceOf(BadRequestException);
+        expect(repo.update).not.toHaveBeenCalled();
+      });
     });
 
     it('does not touch photos when imageKeys is not passed', async () => {

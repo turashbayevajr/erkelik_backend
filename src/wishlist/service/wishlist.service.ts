@@ -70,10 +70,15 @@ export class WishlistsService {
     keys: string[] | undefined,
     ownerId: number,
     loc: CommonLocale,
+    current: WishImageModel[] = [],
   ): Promise<WishImageModel[] | undefined> {
     if (keys === undefined) return undefined;
     const unique = [...new Set(keys)];
-    if (unique.length > MAX_WISH_IMAGES) {
+    // Желания, сохранённые при старом лимите (8), не ломаем: их набор можно
+    // оставить или сократить, но не пополнить сверх лимита.
+    const currentKeys = new Set(current.map((im) => im.key));
+    const adds = unique.some((key) => !currentKeys.has(key));
+    if (unique.length > MAX_WISH_IMAGES && adds) {
       throw new BadRequestException(t('TOO_MANY_IMAGES', loc, ''));
     }
     const images: WishImageModel[] = [];
@@ -190,6 +195,7 @@ export class WishlistsService {
         dto.imageKeys,
         found.ownerId,
         loc,
+        found.images,
       );
       // Правило «фото или ссылка» проверяем, только когда меняется одно из
       // них: старые желания без того и другого остаются редактируемыми.

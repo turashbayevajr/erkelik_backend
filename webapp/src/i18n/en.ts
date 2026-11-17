@@ -77,7 +77,7 @@ export const en: Dict = {
   friendLookupCta: 'Open',
   friendNotFound: 'User not found',
   photosLabel: 'Photos',
-  photosHint: 'up to 8, the first is the cover',
+  photosHint: 'up to 3, the first is the cover',
   addPhoto: 'Add',
   cover: 'Cover',
   removePhoto: 'Remove photo',

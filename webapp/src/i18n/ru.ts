@@ -75,7 +75,7 @@ export const ru = {
   friendLookupCta: 'Открыть',
   friendNotFound: 'Пользователь не найден',
   photosLabel: 'Фото',
-  photosHint: 'до 8, первое — обложка',
+  photosHint: 'до 3, первое — обложка',
   addPhoto: 'Добавить',
   cover: 'Обложка',
   removePhoto: 'Убрать фото',
