@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 
-type Variant = 'primary' | 'muted' | 'soft' | 'outline';
+type Variant = 'primary' | 'muted' | 'soft' | 'outline' | 'ghost';
 
 const STYLES: Record<Variant, string> = {
   primary: 'bg-accent text-onaccent active:bg-accentpress',
   muted: 'bg-chip text-chipink',
   soft: 'bg-accentwash border border-accentborder text-accent',
   outline: 'bg-surface border border-line text-ink',
+  // второстепенное действие (например, удалить) — текстом без фона
+  ghost: 'bg-transparent text-accent disabled:opacity-50',
 };
 
 export function Button({

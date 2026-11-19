@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { useI18n } from '../i18n';
 import { useNav } from '../state/nav';
 import { useWishes } from '../state/wishes';
+import { confirmAction, showAlert } from '../telegram';
 import {
   Button,
   Icon,
   MainButton,
-  StatusBadge,
   PhotoCarousel,
+  StatusBadge,
   StatusStepper,
   TopBar,
 } from '../ui';
@@ -22,32 +24,51 @@ export function WishDetailScreen({
 }) {
   const { t } = useI18n();
   const nav = useNav();
-  const { find, markOrdered, markFulfilled } = useWishes();
+  const { find, markOrdered, markFulfilled, unreserve, removeWish } =
+    useWishes();
+  const [busy, setBusy] = useState(false);
   const wish = find(wishId);
   if (!wish) return null;
 
   const giver = context === 'giver';
   const showGiverStatus = giver && wish.status !== 'OPEN';
+  const myReservation = giver && wish.reservedByMe && wish.status === 'RESERVED';
 
-  const mainAction =
-    giver && wish.reservedByMe && wish.status === 'RESERVED' ? (
-      <MainButton
-        label={t.markOrdered}
-        icon={<Icon name="credit-card" size={17} />}
-        onClick={() => void markOrdered(wish.id)}
-      />
-    ) : !giver && wish.status !== 'FULFILLED' ? (
-      <MainButton
-        label={t.markFulfilled}
-        icon={<Icon name="gift-open" size={17} />}
-        onClick={() => void markFulfilled(wish.id).then(() => nav.back())}
-      />
-    ) : null;
+  // Любое действие: блокируем повторное нажатие, ошибку показываем человеку.
+  const run = (action: () => Promise<void>, after?: () => void) => {
+    if (busy) return;
+    setBusy(true);
+    void action()
+      .then(() => after?.())
+      .catch(() => showAlert(t.actionFailed))
+      .finally(() => setBusy(false));
+  };
+
+  const remove = async () => {
+    if (!(await confirmAction(t.confirmDelete))) return;
+    run(() => removeWish(wish.id), nav.back);
+  };
+
+  const mainAction = myReservation ? (
+    <MainButton
+      label={t.markOrdered}
+      icon={<Icon name="credit-card" size={17} />}
+      disabled={busy}
+      onClick={() => run(() => markOrdered(wish.id))}
+    />
+  ) : !giver && wish.status !== 'FULFILLED' ? (
+    <MainButton
+      label={t.markFulfilled}
+      icon={<Icon name="gift-open" size={17} />}
+      disabled={busy}
+      onClick={() => run(() => markFulfilled(wish.id), nav.back)}
+    />
+  ) : null;
 
   return (
     <div className="flex min-h-dvh flex-col">
       <TopBar
-        title={t.wish}
+        title={giver && wish.ownerLabel ? t.wishlistOf(wish.ownerLabel) : t.wish}
         onBack={nav.back}
         right={
           !giver && wish.status !== 'FULFILLED' ? (
@@ -94,6 +115,25 @@ export function WishDetailScreen({
           >
             {t.openOn(wish.domain)}
             <Icon name="external-link" size={16} className="text-ink3" />
+          </Button>
+        )}
+        {myReservation && (
+          <Button
+            variant="muted"
+            disabled={busy}
+            onClick={() => run(() => unreserve(wish.id), nav.back)}
+          >
+            {t.cancelReservation}
+          </Button>
+        )}
+        {!giver && (
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => void remove()}
+            className="mt-2"
+          >
+            {t.deleteWish}
           </Button>
         )}
       </div>

@@ -101,7 +101,7 @@ const WISH_SELECT = {
   visibility: true,
   createdAt: true,
   updatedAt: true,
-  owner: { select: { username: true } },
+  owner: { select: { username: true, firstName: true } },
   images: {
     select: { key: true, width: true, height: true },
     orderBy: { position: 'asc' },
@@ -120,6 +120,7 @@ function map(row: WishRow): WishlistModel {
     images: row.images,
     ownerId: row.ownerId,
     ownerName: row.owner.username ?? null,
+    ownerFirstName: row.owner.firstName ?? null,
     orderedById: row.orderedById ?? null,
     status: row.status,
     visibility: row.visibility,

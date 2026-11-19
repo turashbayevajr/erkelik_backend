@@ -18,6 +18,8 @@ import {
   pinRatio,
 } from '../ui';
 import type { ComboOption } from '../ui';
+import { ApiError } from '../api';
+import { showAlert } from '../telegram';
 
 // Экшен-слот карточки чужого вишлиста по статусу и «моя ли бронь».
 function GiftAction({ wish }: { wish: Wish }) {
@@ -34,7 +36,9 @@ function GiftAction({ wish }: { wish: Wish }) {
         </span>
         <button
           type="button"
-          onClick={() => void unreserve(wish.id)}
+          onClick={() =>
+            void unreserve(wish.id).catch(() => showAlert(t.actionFailed))
+          }
           className="text-[13px] font-medium opacity-90"
         >
           {t.cancel}
@@ -49,7 +53,14 @@ function GiftAction({ wish }: { wish: Wish }) {
         onClick={() => {
           void reserve(wish.id)
             .then(() => nav.push({ name: 'reserved', ownerName: friendName }))
-            .catch(() => {});
+            // 409 — кто-то успел раньше; список уже обновлён и покажет бейдж
+            .catch((err: unknown) =>
+              showAlert(
+                err instanceof ApiError && err.status === 409
+                  ? t.alreadyReserved
+                  : t.actionFailed,
+              ),
+            );
         }}
       >
         <Icon name="gift-open" size={16} />

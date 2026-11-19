@@ -178,6 +178,31 @@ export class ApiWishesController {
     return toGiverWish(data, user.id);
   }
 
+  // --------- Мои брони («Я дарю») ---------
+
+  /**
+   * Всё, что я забронировал или уже заказал у друзей. Тайна дарителя не
+   * нарушается: это мои собственные брони, владельцу они не видны.
+   */
+  @Get('reservations')
+  async myReservations(@CurrentUser() user: UserModel) {
+    const list = await this.wishes.listReservedByUser(user.id, {
+      orderBy: 'createdAt',
+      sort: 'desc',
+    });
+    // своё желание, отмеченное как забронированное собой, — не подарок
+    return list
+      .filter((w) => w.ownerId !== user.id)
+      .map((w) => ({
+        ...toGiverWish(w, user.id),
+        owner: {
+          id: w.ownerId,
+          username: w.ownerName ?? null,
+          firstName: w.ownerFirstName ?? null,
+        },
+      }));
+  }
+
   // --------- Чужой вишлист ---------
 
   @Get('users/:username/wishes')

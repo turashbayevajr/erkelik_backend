@@ -16,6 +16,7 @@ export interface WishlistModel {
   images: WishImageModel[];
   ownerId: number;
   ownerName?: string | null;
+  ownerFirstName?: string | null;
   orderedById: number | null;
   status: WishlistStatus;
   visibility: WishVisibility;

@@ -9,6 +9,8 @@ import {
 import type { ReactNode } from 'react';
 import {
   createWish,
+  deleteWish,
+  fetchMyReservations,
   fetchFriendView,
   fetchMyWishes,
   mediaSrc,
@@ -51,6 +53,8 @@ export interface Wish {
   visibility?: WishVisibility;
   allowedUserIds?: number[];
   reservedByMe?: boolean;
+  /** Имя владельца — для списка «Я дарю». */
+  ownerLabel?: string;
 }
 
 export interface NewWish {
@@ -107,12 +111,24 @@ function toWish(w: ApiWish): Wish {
     status: w.status,
     visibility: w.visibility,
     reservedByMe: w.reservedByMe,
+    ownerLabel: w.owner
+      ? (w.owner.firstName ?? w.owner.username ?? undefined)
+      : undefined,
   };
 }
+
+export type HomeTab = 'mine' | 'gifts';
 
 type WishesState = {
   loading: boolean;
   myWishes: Wish[];
+  /** Мои брони у друзей; null — ещё не загружены. */
+  reservations: Wish[] | null;
+  loadReservations: () => Promise<void>;
+  /** Вкладка главного экрана — переживает переход в детали и назад. */
+  homeTab: HomeTab;
+  setHomeTab: (tab: HomeTab) => void;
+  removeWish: (id: string) => Promise<void>;
   friendUsername: string | null;
   friendName: string;
   friendWishes: Wish[];
@@ -138,6 +154,8 @@ const WishesContext = createContext<WishesState | null>(null);
 export function WishesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [myWishes, setMyWishes] = useState<Wish[]>([]);
+  const [reservations, setReservations] = useState<Wish[] | null>(null);
+  const [homeTab, setHomeTab] = useState<HomeTab>('mine');
   const [friendUsername, setFriendUsername] = useState<string | null>(null);
   const [friendView, setFriendView] = useState<ApiFriendView | null>(null);
   const [friendLoading, setFriendLoading] = useState(false);
@@ -146,6 +164,11 @@ export function WishesProvider({ children }: { children: ReactNode }) {
   const reloadMy = useCallback(async () => {
     const list = await fetchMyWishes();
     setMyWishes(list.map(toWish));
+  }, []);
+
+  const loadReservations = useCallback(async () => {
+    const list = await fetchMyReservations();
+    setReservations(list.map(toWish));
   }, []);
 
   useEffect(() => {
@@ -187,9 +210,15 @@ export function WishesProvider({ children }: { children: ReactNode }) {
     setFriendNotFound(false);
   }, []);
 
+  // После действий дарителя обновляем и чужой список, и «Я дарю».
   const refreshFriend = useCallback(async () => {
-    if (friendUsername) await loadFriend(friendUsername).catch(() => {});
-  }, [friendUsername, loadFriend]);
+    await Promise.all([
+      friendUsername
+        ? loadFriend(friendUsername).catch(() => {})
+        : Promise.resolve(),
+      loadReservations().catch(() => {}),
+    ]);
+  }, [friendUsername, loadFriend, loadReservations]);
 
   const toggleSubscribe = useCallback(async () => {
     if (!friendUsername || !friendView) return;
@@ -257,23 +286,43 @@ export function WishesProvider({ children }: { children: ReactNode }) {
 
   const unreserve = useCallback(
     async (id: string) => {
-      await unreserveWish(id).catch(() => {});
-      await refreshFriend();
+      // ошибку отдаём экрану — он покажет её человеку
+      try {
+        await unreserveWish(id);
+      } finally {
+        await refreshFriend();
+      }
     },
     [refreshFriend],
   );
 
   const markOrdered = useCallback(
     async (id: string) => {
-      await orderWish(id).catch(() => {});
-      await refreshFriend();
+      // ошибку отдаём экрану — он покажет её человеку
+      try {
+        await orderWish(id);
+      } finally {
+        await refreshFriend();
+      }
     },
     [refreshFriend],
   );
 
   const markFulfilled = useCallback(
     async (id: string) => {
-      await fulfillWish(id).catch(() => {});
+      // ошибку отдаём экрану — он покажет её человеку
+      try {
+        await fulfillWish(id);
+      } finally {
+        await reloadMy();
+      }
+    },
+    [reloadMy],
+  );
+
+  const removeWish = useCallback(
+    async (id: string) => {
+      await deleteWish(id);
       await reloadMy();
     },
     [reloadMy],
@@ -288,6 +337,11 @@ export function WishesProvider({ children }: { children: ReactNode }) {
     () => ({
       loading,
       myWishes,
+      reservations,
+      loadReservations,
+      homeTab,
+      setHomeTab,
+      removeWish,
       friendUsername,
       friendName:
         friendView?.owner.firstName ??
@@ -309,11 +363,18 @@ export function WishesProvider({ children }: { children: ReactNode }) {
       unreserve,
       markOrdered,
       markFulfilled,
-      find: (id) => [...myWishes, ...friendWishes].find((w) => w.id === id),
+      find: (id) =>
+        [...myWishes, ...friendWishes, ...(reservations ?? [])].find(
+          (w) => w.id === id,
+        ),
     }),
     [
       loading,
       myWishes,
+      reservations,
+      loadReservations,
+      homeTab,
+      removeWish,
       friendUsername,
       friendView,
       friendWishes,

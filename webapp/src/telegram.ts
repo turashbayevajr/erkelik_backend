@@ -19,6 +19,8 @@ type TgWebApp = {
   expand(): void;
   onEvent(event: string, cb: () => void): void;
   openTelegramLink(url: string): void;
+  showAlert(message: string, cb?: () => void): void;
+  showConfirm(message: string, cb: (ok: boolean) => void): void;
   MainButton: TgMainButton;
   BackButton: {
     show(): void;
@@ -137,4 +139,20 @@ export function initTelegram(): void {
   tg.ready();
   tg.expand();
   tg.onEvent('themeChanged', applyTheme);
+}
+
+/** Сообщение человеку: родной попап Telegram, вне его — alert. */
+export function showAlert(message: string): void {
+  const tg = getWebApp();
+  if (tg?.initData) tg.showAlert(message);
+  else window.alert(message);
+}
+
+/** Подтверждение необратимого действия (удаление и т. п.). */
+export function confirmAction(message: string): Promise<boolean> {
+  const tg = getWebApp();
+  if (tg?.initData) {
+    return new Promise((resolve) => tg.showConfirm(message, resolve));
+  }
+  return Promise.resolve(window.confirm(message));
 }

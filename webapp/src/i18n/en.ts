@@ -94,4 +94,15 @@ export const en: Dict = {
     'Share your wishlist link from the profile',
     'Friends reserve secretly — you won’t know who picked what',
   ],
+  tabMine: 'My wishes',
+  tabGifts: 'I’m gifting',
+  giftsEmptyTitle: 'You aren’t gifting anything yet',
+  giftsEmptyText:
+    'Open a friend’s wishlist and reserve a gift — it will show up here.',
+  openFriendWishlist: 'Open a friend’s wishlist',
+  deleteWish: 'Delete wish',
+  confirmDelete: 'Delete this wish? This can’t be undone.',
+  cancelReservation: 'Cancel reservation',
+  alreadyReserved: 'Someone else has already reserved this wish.',
+  actionFailed: 'Something went wrong. Check your connection and try again.',
 };

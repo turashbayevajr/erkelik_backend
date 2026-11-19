@@ -102,6 +102,8 @@ export interface ApiWish {
   status: ApiStatus;
   visibility?: ApiVisibility;
   reservedByMe?: boolean;
+  /** Чьё желание — только в списке «Я дарю». */
+  owner?: { id: number; username: string | null; firstName: string | null };
 }
 
 export interface ApiFriendView {
@@ -145,6 +147,10 @@ export const patchMe = (patch: {
   request<ApiUser>('/api/me', { method: 'PATCH', body: JSON.stringify(patch) });
 
 export const fetchMyWishes = () => request<ApiWish[]>('/api/wishes');
+
+/** Мои брони у друзей («Я дарю»). */
+export const fetchMyReservations = () =>
+  request<ApiWish[]>('/api/reservations');
 
 export const createWish = (wish: {
   name: string;

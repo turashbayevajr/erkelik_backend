@@ -50,9 +50,12 @@ export function PinCard({
   onClick,
   badge,
   footer,
+  subtitle,
 }: {
   wish: Wish;
   onClick?: () => void;
+  /** Строка над названием, например чьё это желание. */
+  subtitle?: string;
   badge?: ReactNode;
   footer?: ReactNode;
 }) {
@@ -61,6 +64,14 @@ export function PinCard({
       <button type="button" onClick={onClick} className="block w-full text-left">
         <PinCover wish={wish} />
         <div className="px-1 pt-2">
+          {subtitle && (
+            <div className="mb-[2px] flex min-w-0 items-center gap-1 text-accent">
+              <Icon name="gift" size={12} strokeWidth={2.2} className="shrink-0" />
+              <span className="truncate text-[12px] font-semibold">
+                {subtitle}
+              </span>
+            </div>
+          )}
           <div className="text-[14px] leading-[1.25] font-semibold text-ink line-clamp-2 break-words">
             {wish.name}
           </div>
