@@ -136,6 +136,8 @@ export async function apiLogin(
 
 export const fetchMe = () => request<ApiUser>('/api/me');
 
+export const fetchBotInfo = () => request<{ username: string }>('/api/bot');
+
 export const patchMe = (patch: {
   preferredLocale?: ApiLocale;
   defaultVisibility?: ApiVisibility;

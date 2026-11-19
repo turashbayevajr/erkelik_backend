@@ -18,6 +18,7 @@ type TgWebApp = {
   ready(): void;
   expand(): void;
   onEvent(event: string, cb: () => void): void;
+  openTelegramLink(url: string): void;
   MainButton: TgMainButton;
   BackButton: {
     show(): void;
@@ -64,14 +65,49 @@ export function getTelegramLanguageCode(): string | undefined {
   }
 }
 
-/** start_param из initData: username друга при открытии по share-ссылке. */
+/**
+ * Чей вишлист открыть сразу: start_param из initData (прямая ссылка на
+ * miniapp) или ?friend=<username> (кнопка «Открыть в приложении» в боте —
+ * web_app-кнопки start_param не передают).
+ */
 export function getStartParam(): string | undefined {
-  const raw = getInitDataRaw();
-  if (!raw) return undefined;
   try {
-    return new URLSearchParams(raw).get('start_param') ?? undefined;
+    const fromInit = new URLSearchParams(getInitDataRaw()).get('start_param');
+    if (fromInit) return fromInit;
+    return new URLSearchParams(window.location.search).get('friend') ?? undefined;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Поделиться ссылкой: в Telegram — родное окно выбора чата, вне его —
+ * системное «Поделиться» или копирование. Возвращает, что произошло.
+ */
+export async function shareLink(
+  url: string,
+  text: string,
+): Promise<'telegram' | 'system' | 'copied' | 'failed'> {
+  const tg = getWebApp();
+  if (tg?.initData) {
+    tg.openTelegramLink(
+      `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+    );
+    return 'telegram';
+  }
+  if (navigator.share) {
+    try {
+      await navigator.share({ url, text });
+      return 'system';
+    } catch {
+      // отменили или не поддерживается — пробуем скопировать
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    return 'copied';
+  } catch {
+    return 'failed';
   }
 }
 

@@ -39,7 +39,11 @@ export function MyWishlistScreen() {
       </div>
 
       {empty ? (
-        <EmptyState title={t.emptyTitle} text={t.emptyText} />
+        <EmptyState
+          title={t.emptyTitle}
+          text={t.emptyText}
+          steps={t.onboardingSteps}
+        />
       ) : (
         <div className="flex flex-col gap-[11px]">
           <div className="flex items-baseline justify-between px-1 pb-1">

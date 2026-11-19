@@ -34,6 +34,8 @@ services:
     environment:
       PORT: 4000
       UPLOADS_DIR: /app/uploads
+      # адрес miniapp: кнопка меню бота и кнопки «Открыть вишлист»
+      WEBAPP_URL: ${WEBAPP_URL:-https://erkelik.65-21-4-110.sslip.io}
     volumes:
       # фото желаний — переживают пересборку контейнера; включить в бэкап
       - uploads:/app/uploads

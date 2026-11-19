@@ -1,4 +1,7 @@
+import { useState } from 'react';
+import { fetchBotInfo } from '../api';
 import { LOCALE_LABELS, useI18n } from '../i18n';
+import { shareLink } from '../telegram';
 import type { Locale } from '../i18n';
 import { useNav } from '../state/nav';
 import { useAuth } from '../state/auth';
@@ -35,9 +38,29 @@ export function ProfileScreen() {
 
   const displayName = me?.firstName || me?.username || '—';
 
-  const share = () => {
-    // Реальная ссылка t.me/... появится вместе с ботовским share-flow.
-    void navigator.clipboard?.writeText('https://t.me/erkelik_bot');
+  // Подсказка под строкой «Поделиться»: нет username / ссылка скопирована.
+  const [shareNote, setShareNote] = useState<string | null>(null);
+
+  // Ссылка t.me/<бот>?start=<username>: друг попадает сразу в ваш вишлист.
+  const share = async () => {
+    if (!me?.username) {
+      setShareNote(t.shareNeedsUsername);
+      return;
+    }
+    try {
+      const bot = await fetchBotInfo();
+      const url = `https://t.me/${bot.username}?start=${me.username}`;
+      const result = await shareLink(url, t.shareInvite);
+      setShareNote(
+        result === 'copied'
+          ? t.linkCopied
+          : result === 'failed'
+            ? url
+            : null,
+      );
+    } catch {
+      setShareNote(t.shareFailed);
+    }
   };
 
   const pickLocale = (l: Locale) => {
@@ -74,8 +97,13 @@ export function ProfileScreen() {
           icon={<Icon name="share" size={20} />}
           title={t.shareWishlist}
           subtitle={t.shareWishlistSub}
-          onClick={share}
+          onClick={() => void share()}
         />
+        {shareNote && (
+          <div className="-mt-2 px-2 text-[13px] leading-[1.4] break-all text-ink3">
+            {shareNote}
+          </div>
+        )}
 
         <div>
           <div className="mx-[6px] mb-2 font-mono text-[11px] tracking-[0.1em] text-ink3 uppercase">
@@ -164,7 +192,7 @@ export function ProfileScreen() {
       <MainButton
         label={t.shareCta}
         icon={<Icon name="share" size={18} />}
-        onClick={share}
+        onClick={() => void share()}
       />
     </div>
   );

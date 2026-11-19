@@ -84,4 +84,14 @@ export const en: Dict = {
   photoOrLinkHint: 'Add a photo or a link — at least one of them is required.',
   photoOf: (n: number, total: number) => `Photo ${n} of ${total}`,
   saveFailed: 'Could not save. Please try again.',
+  shareInvite: 'My wishlist on Erkelik — pick something to make me happy 🎁',
+  shareNeedsUsername:
+    'To share your wishlist, set a username in Telegram settings — friends find your list by it.',
+  linkCopied: 'Link copied — send it to your friends.',
+  shareFailed: 'Could not get the link. Please try again.',
+  onboardingSteps: [
+    'Add a wish — a photo or a link, and a price',
+    'Share your wishlist link from the profile',
+    'Friends reserve secretly — you won’t know who picked what',
+  ],
 };

@@ -17,7 +17,16 @@ function Sparkle({ className, size }: { className: string; size: number }) {
   );
 }
 
-export function EmptyState({ title, text }: { title: string; text: string }) {
+export function EmptyState({
+  title,
+  text,
+  steps,
+}: {
+  title: string;
+  text: string;
+  /** Короткие шаги «как начать» для первого входа. */
+  steps?: string[];
+}) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-10 pb-24 text-center">
       <div className="relative mb-[26px] h-[132px] w-[132px]">
@@ -33,6 +42,20 @@ export function EmptyState({ title, text }: { title: string; text: string }) {
       <div className="max-w-[280px] text-[15px] leading-normal text-ink3">
         {text}
       </div>
+      {steps && (
+        <ol className="mt-6 flex w-full max-w-[300px] flex-col gap-3 text-left">
+          {steps.map((step, i) => (
+            <li key={step} className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accentsoft text-[13px] font-bold text-accent">
+                {i + 1}
+              </span>
+              <span className="min-w-0 pt-[2px] text-[14px] leading-[1.4] text-ink2">
+                {step}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

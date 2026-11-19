@@ -20,6 +20,7 @@ import { isPriceWithinRange } from 'src/common/price';
 
 import { WishlistModel } from 'src/wishlist/repository/wishlist.model';
 import { UserService } from 'src/users/service/users.service';
+import type { UserModel } from 'src/users/repository/users.model';
 import { WishlistsService } from 'src/wishlist/service/wishlist.service';
 import { SocialService } from 'src/social/service/social.service';
 import {
@@ -60,9 +61,10 @@ function resolveUILang(ctx: BotContext): UILang {
   return localeFromLanguageCode(lc) ?? 'EN';
 }
 
-function buildMainMenu(lang: UILang) {
+function buildMainMenu(lang: UILang, webAppUrl?: string) {
   const B = UI[lang].buttons;
   return Markup.inlineKeyboard([
+    ...(webAppUrl ? [[Markup.button.webApp(B.openApp, webAppUrl)]] : []),
     [Markup.button.callback(B.add, 'add')],
     [Markup.button.callback(B.viewMine, 'view')],
     [Markup.button.callback(B.viewOthers, 'view_others')],
@@ -70,6 +72,10 @@ function buildMainMenu(lang: UILang) {
     [
       Markup.button.callback(B.friendsList, 'friends'),
       Markup.button.callback(B.subscriptionsList, 'subscriptions'),
+    ],
+    [
+      Markup.button.callback(B.share, 'share'),
+      Markup.button.callback(B.help, 'help'),
     ],
   ]);
 }
@@ -304,6 +310,7 @@ export class BotService {
     } else {
       this.bot.launch();
       this.logger.verbose('Bot is running…');
+      void this.configureBotProfile();
 
       process.once('SIGINT', () => this.bot.stop('SIGINT'));
       process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
@@ -530,7 +537,180 @@ export class BotService {
     const T = this.ui(ctx);
     await ctx.reply(escapeMarkdownV2(T.menuTitle), {
       parse_mode: 'MarkdownV2',
-      ...buildMainMenu(resolveUILang(ctx)),
+      ...buildMainMenu(resolveUILang(ctx), this.webAppUrl()),
+    });
+  }
+
+  /** Адрес miniapp (https), без него web_app-кнопки не показываем. */
+  private webAppUrl(path = ''): string | undefined {
+    const base = this.config.get<string>('WEBAPP_URL')?.replace(/\/+$/, '');
+    return base?.startsWith('https://') ? `${base}/${path}` : undefined;
+  }
+
+  private botUsernameCache?: Promise<string>;
+
+  /** Username бота — у прода и dev разные токены, поэтому не хардкодим. */
+  botUsername(): Promise<string> {
+    this.botUsernameCache ??= this.bot.telegram
+      .getMe()
+      .then((me) => me.username);
+    // при сбое не кэшируем ошибку навсегда
+    this.botUsernameCache.catch(() => (this.botUsernameCache = undefined));
+    return this.botUsernameCache;
+  }
+
+  /** Ссылка-приглашение: открывает у друга бота сразу на вашем вишлисте. */
+  async shareLink(username: string): Promise<string> {
+    return `https://t.me/${await this.botUsername()}?start=${username}`;
+  }
+
+  /**
+   * Описание, команды и кнопка miniapp — то, что человек видит до /start и
+   * под полем ввода. Задаём из кода на всех трёх языках, чтобы не зависеть
+   * от ручной настройки в BotFather. Сбой не мешает работе бота.
+   */
+  private async configureBotProfile(): Promise<void> {
+    const langs: [UILang, string | undefined][] = [
+      ['EN', undefined], // по умолчанию — для всех остальных языков
+      ['RU', 'ru'],
+      ['KK', 'kk'],
+    ];
+    try {
+      for (const [lang, code] of langs) {
+        const T = UI[lang];
+        const commands = (
+          Object.keys(T.commands) as (keyof typeof T.commands)[]
+        ).map((command) => ({ command, description: T.commands[command] }));
+        await this.bot.telegram.setMyCommands(
+          commands,
+          code ? { language_code: code } : undefined,
+        );
+        await this.bot.telegram.setMyDescription(T.botDescription, code);
+        await this.bot.telegram.setMyShortDescription(
+          T.botShortDescription,
+          code,
+        );
+      }
+      const url = this.webAppUrl();
+      if (url) {
+        await this.bot.telegram.setChatMenuButton({
+          menuButton: {
+            type: 'web_app',
+            text: UI.RU.menuButton,
+            web_app: { url },
+          },
+        });
+      }
+      this.logger.log('Bot profile configured');
+    } catch (err) {
+      this.logger.warn(`configureBotProfile failed: ${String(err)}`);
+    }
+  }
+
+  /** Чужой вишлист в чате: по поиску username или по ссылке-приглашению. */
+  private async showUserWishlist(ctx: BotContext, raw: string): Promise<void> {
+    const lang = resolveUILang(ctx);
+    const T = UI[lang];
+    let u: UserModel;
+    try {
+      u = await this.users.findByUsername(raw);
+    } catch (e) {
+      if (e instanceof NotFoundException) {
+        await ctx.reply(escapeMarkdownV2(T.userNotRegister), {
+          parse_mode: 'MarkdownV2',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback(T.buttons.menu, 'menu')],
+          ]),
+        });
+        return;
+      }
+      throw e;
+    }
+    const me = await this.ensureMe(ctx);
+    // Чужой список — только то, что видно смотрящему (PUBLIC/FRIENDS/CUSTOM)
+    const list = await this.wishes.listVisibleByOwner(u.id, me.id, {
+      statuses: [WishlistStatus.OPEN],
+      orderBy: 'createdAt',
+      sort: 'desc',
+    });
+
+    const [subscribed, friends] = await Promise.all([
+      this.social.isSubscribed(me.id, u.id),
+      this.social.areFriends(me.id, u.id),
+    ]);
+    const socialRow = [
+      Markup.button.callback(
+        subscribed ? T.buttons.unsubscribe : T.buttons.subscribe,
+        subscribed ? `unsub_${u.id}` : `sub_${u.id}`,
+      ),
+      ...(friends || me.id === u.id
+        ? []
+        : [Markup.button.callback(T.buttons.addFriend, `fr_req_${u.id}`)]),
+    ];
+    // Тот же вишлист в miniapp — с фото и бронью в один тап.
+    const appUrl = u.username
+      ? this.webAppUrl(`?friend=${encodeURIComponent(u.username)}`)
+      : undefined;
+    const appRow = appUrl
+      ? [[Markup.button.webApp(T.buttons.openFriendApp, appUrl)]]
+      : [];
+
+    if (!list.length) {
+      await ctx.reply(escapeMarkdownV2(T.userHasNoWishes), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          socialRow,
+          [Markup.button.callback(T.buttons.menu, 'menu')],
+        ]),
+      });
+      return;
+    }
+
+    await ctx.reply(escapeMarkdownV2(T.listTitleOthers(u.username ?? raw)), {
+      parse_mode: 'MarkdownV2',
+      ...Markup.inlineKeyboard([...appRow, socialRow]),
+    });
+    for (const it of list) {
+      await ctx.reply(escapeMarkdownV2(it.name), {
+        parse_mode: 'MarkdownV2',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback(it.name, `view_other_${it.id}`)],
+        ]),
+      });
+    }
+  }
+
+  private async replyHelp(ctx: BotContext): Promise<void> {
+    const T = this.ui(ctx);
+    await ctx.reply(escapeMarkdownV2(T.help), {
+      parse_mode: 'MarkdownV2',
+      ...Markup.inlineKeyboard([
+        ...(this.webAppUrl()
+          ? [[Markup.button.webApp(T.buttons.openApp, this.webAppUrl()!)]]
+          : []),
+        [Markup.button.callback(T.buttons.menu, 'menu')],
+      ]),
+    });
+  }
+
+  private async replyShare(ctx: BotContext): Promise<void> {
+    const T = this.ui(ctx);
+    const username = ctx.from?.username;
+    if (!username) {
+      await ctx.reply(escapeMarkdownV2(T.needUsername), {
+        parse_mode: 'MarkdownV2',
+      });
+      return;
+    }
+    const link = await this.shareLink(username);
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(T.shareInvite)}`;
+    await ctx.reply(escapeMarkdownV2(T.shareLink(link)), {
+      parse_mode: 'MarkdownV2',
+      link_preview_options: { is_disabled: true },
+      ...Markup.inlineKeyboard([
+        [Markup.button.url(T.buttons.sendToFriend, shareUrl)],
+        [Markup.button.callback(T.buttons.menu, 'menu')],
+      ]),
     });
   }
 
@@ -539,15 +719,37 @@ export class BotService {
   private registerHandlers() {
     // /start
     this.bot.start(async (ctx) => {
-      const lang = resolveUILang(ctx);
-      const T = UI[lang];
       const firstName = (ctx.from as any).first_name ?? null;
-
       await this.ensureMe(ctx);
-      await ctx.reply(escapeMarkdownV2(T.hello(firstName)), {
+      const T = this.ui(ctx);
+
+      // Ссылка-приглашение t.me/<bot>?start=<username>: сразу чужой вишлист.
+      const payload = ctx.payload?.trim();
+      if (
+        payload &&
+        isValidUsername(payload) &&
+        payload.toLowerCase() !== ctx.from.username?.toLowerCase()
+      ) {
+        await this.showUserWishlist(ctx, payload);
+        return;
+      }
+
+      await ctx.reply(escapeMarkdownV2(`${T.hello(firstName)}\n\n${T.intro}`), {
         parse_mode: 'MarkdownV2',
       });
       await this.showMainMenu(ctx);
+    });
+
+    this.bot.command('menu', (ctx) => this.showMainMenu(ctx));
+    this.bot.command('help', (ctx) => this.replyHelp(ctx));
+    this.bot.command('share', (ctx) => this.replyShare(ctx));
+    this.bot.action('help', async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      await this.replyHelp(ctx);
+    });
+    this.bot.action('share', async (ctx) => {
+      await ctx.answerCbQuery().catch(() => {});
+      await this.replyShare(ctx);
     });
 
     // Menu
@@ -1399,72 +1601,8 @@ export class BotService {
           });
           return;
         }
-        let u;
-        try {
-          u = await this.users.findByUsername(raw);
-        } catch (e) {
-          if (e instanceof NotFoundException) {
-            await ctx.reply(escapeMarkdownV2(T.userNotRegister), {
-              parse_mode: 'MarkdownV2',
-              ...Markup.inlineKeyboard([
-                [Markup.button.callback(T.buttons.menu, 'menu')],
-              ]),
-            });
-            ctx.session.step = undefined;
-            return;
-          }
-          throw e;
-        }
-        const me = await this.ensureMe(ctx);
-        // Чужой список — только то, что видно смотрящему (PUBLIC/FRIENDS/CUSTOM)
-        const list = await this.wishes.listVisibleByOwner(u.id, me.id, {
-          statuses: [WishlistStatus.OPEN],
-          orderBy: 'createdAt',
-          sort: 'desc',
-        });
-
-        const [subscribed, friends] = await Promise.all([
-          this.social.isSubscribed(me.id, u.id),
-          this.social.areFriends(me.id, u.id),
-        ]);
-        const socialRow = [
-          Markup.button.callback(
-            subscribed ? T.buttons.unsubscribe : T.buttons.subscribe,
-            subscribed ? `unsub_${u.id}` : `sub_${u.id}`,
-          ),
-          ...(friends || me.id === u.id
-            ? []
-            : [Markup.button.callback(T.buttons.addFriend, `fr_req_${u.id}`)]),
-        ];
-
-        if (!list.length) {
-          await ctx.reply(escapeMarkdownV2(T.userHasNoWishes), {
-            parse_mode: 'MarkdownV2',
-            ...Markup.inlineKeyboard([
-              socialRow,
-              [Markup.button.callback(T.buttons.menu, 'menu')],
-            ]),
-          });
-          ctx.session.step = undefined;
-          return;
-        }
-
-        await ctx.reply(
-          escapeMarkdownV2(UI[lang].listTitleOthers(u.username ?? raw)),
-          {
-            parse_mode: 'MarkdownV2',
-            ...Markup.inlineKeyboard([socialRow]),
-          },
-        );
-        for (const it of list) {
-          await ctx.reply(escapeMarkdownV2(it.name), {
-            parse_mode: 'MarkdownV2',
-            ...Markup.inlineKeyboard([
-              [Markup.button.callback(it.name, `view_other_${it.id}`)],
-            ]),
-          });
-        }
         ctx.session.step = undefined;
+        await this.showUserWishlist(ctx, raw);
         return;
       }
 
