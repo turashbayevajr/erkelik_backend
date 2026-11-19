@@ -6,7 +6,7 @@ export const UI = {
       `Welcome${name ? ', ' + escapePlain(name) : ''}!`,
     intro:
       '🎁 Erkelik is a wishlist right in Telegram.\n\n1. Add wishes — a photo or a link, and a price.\n2. Share the link to your wishlist with friends.\n3. Friends reserve gifts secretly — you won’t find out who picked what.',
-    help: '❓ How it works\n\n• Add a wish: “➕ Add wish” or the “Wishlist” button below the chat. Every wish needs a photo or a link.\n• Share: /share gives you a link to your wishlist — send it to friends.\n• Secret: you never see who reserved your wishes or whether they are reserved. Friends see what is already taken, so gifts don’t repeat.\n• Who sees a wish: everyone, only friends, or chosen people — set it when adding a wish.\n• Subscribe to friends to get a message when they add something new.',
+    help: '❓ How it works\n\n• Add a wish: “➕ Add wish” or the ❤️ button below the chat. Every wish needs a photo or a link.\n• Share: /share gives you a link to your wishlist — send it to friends.\n• Secret: you never see who reserved your wishes or whether they are reserved. Friends see what is already taken, so gifts don’t repeat.\n• Who sees a wish: everyone, only friends, or chosen people — set it when adding a wish.\n• Subscribe to friends to get a message when they add something new.',
     shareLink: (link: string) =>
       `📤 Your wishlist link:\n${link}\n\nSend it to friends — it opens your wishlist.`,
     shareInvite: 'My wishlist on Erkelik — pick something to make me happy 🎁',
@@ -22,7 +22,6 @@ export const UI = {
       'Erkelik is a wishlist in Telegram. Add what you dream of, share the link with friends — they reserve gifts secretly, and you get exactly what you wanted.',
     botShortDescription:
       'Wishlist in Telegram: add wishes, share with friends — they reserve gifts secretly.',
-    menuButton: 'Wishlist',
     menuTitle: 'Choose an action:',
     youHaveNoWishes: 'Your wishlist is empty.',
     userHasNoWishes: 'This user has no wishes yet.',
@@ -133,7 +132,7 @@ export const UI = {
       `Добро пожаловать${name ? ', ' + escapePlain(name) : ''}!`,
     intro:
       '🎁 Erkelik — вишлист прямо в Telegram.\n\n1. Добавляйте желания — фото или ссылка и цена.\n2. Поделитесь ссылкой на свой вишлист с друзьями.\n3. Друзья бронируют подарки втайне — вы не узнаете, кто что выбрал.',
-    help: '❓ Как это работает\n\n• Добавить желание: «➕ Добавить желание» или кнопка «Вишлист» под чатом. У желания должно быть фото или ссылка.\n• Поделиться: /share даст ссылку на ваш вишлист — отправьте её друзьям.\n• Тайна: вы не видите, кто забронировал ваши желания и забронированы ли они. Друзья видят, что уже занято, — подарки не повторятся.\n• Кто видит желание: все, только друзья или выбранные люди — это задаётся при добавлении.\n• Подпишитесь на друзей — придёт сообщение, когда они добавят что-то новое.',
+    help: '❓ Как это работает\n\n• Добавить желание: «➕ Добавить желание» или кнопка ❤️ под чатом. У желания должно быть фото или ссылка.\n• Поделиться: /share даст ссылку на ваш вишлист — отправьте её друзьям.\n• Тайна: вы не видите, кто забронировал ваши желания и забронированы ли они. Друзья видят, что уже занято, — подарки не повторятся.\n• Кто видит желание: все, только друзья или выбранные люди — это задаётся при добавлении.\n• Подпишитесь на друзей — придёт сообщение, когда они добавят что-то новое.',
     shareLink: (link: string) =>
       `📤 Ссылка на ваш вишлист:\n${link}\n\nОтправьте её друзьям — по ней откроется ваш вишлист.`,
     shareInvite: 'Мой вишлист в Erkelik — выбери, чем меня порадовать 🎁',
@@ -149,7 +148,6 @@ export const UI = {
       'Erkelik — вишлист в Telegram. Добавляйте то, о чём мечтаете, делитесь ссылкой с друзьями — они бронируют подарки втайне, а вы получаете именно то, что хотели.',
     botShortDescription:
       'Вишлист в Telegram: добавляйте желания, делитесь с друзьями — они бронируют подарки втайне.',
-    menuButton: 'Вишлист',
     menuTitle: 'Выберите действие:',
     youHaveNoWishes: 'Ваш список желаний пуст.',
     userHasNoWishes: 'У пользователя пока нет желаний.',
@@ -262,7 +260,7 @@ export const UI = {
       `Қош келдіңіз${name ? ', ' + escapePlain(name) : ''}!`,
     intro:
       '🎁 Erkelik — Telegram ішіндегі тілектер тізімі.\n\n1. Тілек қосыңыз — фото немесе сілтеме және баға.\n2. Тізіміңіздің сілтемесін достарыңызбен бөлісіңіз.\n3. Достарыңыз сыйлықты жасырын брондайды — кім не таңдағанын білмейсіз.',
-    help: '❓ Бұл қалай жұмыс істейді\n\n• Тілек қосу: «➕ Тілек қосу» немесе чат астындағы «Вишлист» батырмасы. Тілекте фото немесе сілтеме болуы керек.\n• Бөлісу: /share тізіміңіздің сілтемесін береді — оны достарыңызға жіберіңіз.\n• Құпия: тілектеріңізді кім брондағанын және брондалғанын көрмейсіз. Достарыңыз не алынғанын көреді — сыйлықтар қайталанбайды.\n• Тілекті кім көреді: барлығы, тек достар немесе таңдалған адамдар — қосқанда белгіленеді.\n• Достарыңызға жазылыңыз — олар жаңа тілек қосқанда хабар келеді.',
+    help: '❓ Бұл қалай жұмыс істейді\n\n• Тілек қосу: «➕ Тілек қосу» немесе чат астындағы ❤️ батырмасы. Тілекте фото немесе сілтеме болуы керек.\n• Бөлісу: /share тізіміңіздің сілтемесін береді — оны достарыңызға жіберіңіз.\n• Құпия: тілектеріңізді кім брондағанын және брондалғанын көрмейсіз. Достарыңыз не алынғанын көреді — сыйлықтар қайталанбайды.\n• Тілекті кім көреді: барлығы, тек достар немесе таңдалған адамдар — қосқанда белгіленеді.\n• Достарыңызға жазылыңыз — олар жаңа тілек қосқанда хабар келеді.',
     shareLink: (link: string) =>
       `📤 Тізіміңіздің сілтемесі:\n${link}\n\nОны достарыңызға жіберіңіз — сілтеме арқылы тізіміңіз ашылады.`,
     shareInvite:
@@ -279,7 +277,6 @@ export const UI = {
       'Erkelik — Telegram-дағы тілектер тізімі. Армандарыңызды қосыңыз, сілтемені достарыңызбен бөлісіңіз — олар сыйлықты жасырын брондайды, ал сіз қалағаныңызды аласыз.',
     botShortDescription:
       'Telegram-дағы тілектер тізімі: тілек қосыңыз, достарыңызбен бөлісіңіз — олар сыйлықты жасырын брондайды.',
-    menuButton: 'Вишлист',
     menuTitle: 'Әрекет таңдаңыз:',
     youHaveNoWishes: 'Сіздің еркелік тізіміңіз бос.',
     userHasNoWishes: 'Бұл пайдаланушыда әзірге еркелік жоқ.',
@@ -334,7 +331,7 @@ export const UI = {
       'Әзірге достар жоқ — біреудің тілектер тізімін ашып, өтінім жіберіңіз.',
     noSubscriptions: 'Әзірге жазылымдар жоқ — @username арқылы тізім табыңыз.',
     buttons: {
-      openApp: '📱 Вишлистті ашу',
+      openApp: '📱 Еркелікті ашу',
       openFriendApp: '📱 Қолданбада ашу',
       share: '📤 Тізіммен бөлісу',
       sendToFriend: '✉️ Досқа жіберу',

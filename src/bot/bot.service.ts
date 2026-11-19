@@ -35,6 +35,11 @@ import { WishlistStatus } from '@prisma/client';
 /** Лимит подписи к фото в Telegram. */
 const TG_CAPTION_LIMIT = 1024;
 const TG_FILE_ID_CACHE_LIMIT = 5000;
+/**
+ * Кнопка miniapp под полем ввода. Текст у неё один на всех (Telegram не
+ * даёт задать его по языкам), поэтому — сердечко, а не слово.
+ */
+const MENU_BUTTON_TEXT = '❤️';
 
 const ESCAPE_CHARS = /[_*[\]()~`>#+\-=|{}.!\\]/g;
 function escapeMarkdownV2(text: string): string {
@@ -596,7 +601,7 @@ export class BotService {
         await this.bot.telegram.setChatMenuButton({
           menuButton: {
             type: 'web_app',
-            text: UI.RU.menuButton,
+            text: MENU_BUTTON_TEXT,
             web_app: { url },
           },
         });
